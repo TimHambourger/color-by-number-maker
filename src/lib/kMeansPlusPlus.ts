@@ -1,7 +1,11 @@
 export type Vector = readonly number[];
 export type ComputedVector<T extends Vector> = T | { [Index in keyof T]: number };
-export type CoordsFn<TPoint, TCoords> = (point: TPoint, idx: number) => TCoords;
-export type WeightFn<TPoint> = (point: TPoint, idx: number) => number;
+export type PointTransformer<TPoint, R> = (point: TPoint, idx: number) => R;
+export type WeightFn<TPoint> = PointTransformer<TPoint, number>;
+
+export interface KMeansWeightingOptions<TPoint> {
+  weightFn?: WeightFn<TPoint>;
+}
 
 function readCoordinate(coords: Vector, axis: number) {
   return coords[axis] ?? 0;
@@ -29,12 +33,62 @@ export function scaleVector<T extends Vector>(coords: T, scale: number) {
   return coords.map((coord) => coord * scale) as unknown as ComputedVector<T>;
 }
 
+export function computeMean<T extends Vector>(
+  dataPoints: readonly T[],
+  options?: KMeansWeightingOptions<T>,
+): ComputedVector<T>;
+export function computeMean<TPoint, TCoords extends Vector>(
+  dataPoints: readonly TPoint[],
+  coordsFn: PointTransformer<TPoint, TCoords>,
+  options?: KMeansWeightingOptions<TPoint>,
+): ComputedVector<TCoords>;
+export function computeMean<TPoint, TCoords extends Vector>(
+  dataPoints: readonly TPoint[],
+  coordsFnOrOptions?: PointTransformer<TPoint, TCoords> | KMeansWeightingOptions<TPoint>,
+  options?: KMeansWeightingOptions<TPoint>,
+) {
+  const { coordsFn, options: { weightFn = uniformWeight } = {} } = unsafeParseCoordsFnAndOptions(
+    coordsFnOrOptions,
+    options,
+  );
+  let totalWeight = 0;
+  for (let i = 0; i < dataPoints.length; i++) {
+    totalWeight += weightFn(dataPoints[i], i);
+  }
+
+  if (totalWeight === 0) throw new Error("At least one data point must exist and have positive weight.");
+
+  let summedVector = undefined;
+  for (let i = 0; i < dataPoints.length; i++) {
+    const coords = coordsFn(dataPoints[i], i);
+    const weightedCoords = scaleVector(coords, weightFn(dataPoints[i], i));
+    summedVector = summedVector === undefined ? weightedCoords : sumVectors(summedVector, weightedCoords);
+  }
+
+  return scaleVector(summedVector!, 1 / totalWeight);
+}
+
+export function simultaneousMeans<T extends Vector, K>(
+  dataPoints: readonly T[],
+  keyFn: PointTransformer<T, K>,
+  options?: KMeansWeightingOptions<T>,
+): Map<K, ComputedVector<T>>;
 export function simultaneousMeans<TPoint, TCoords extends Vector, K>(
   dataPoints: readonly TPoint[],
-  keyFn: (point: TPoint, idx: number) => K,
-  coordsFn: CoordsFn<TPoint, TCoords>,
-  weightFn: WeightFn<TPoint> = uniformWeight,
+  keyFn: PointTransformer<TPoint, K>,
+  coordsFn: PointTransformer<TPoint, TCoords>,
+  options?: KMeansWeightingOptions<TPoint>,
+): Map<K, ComputedVector<TCoords>>;
+export function simultaneousMeans<TPoint, TCoords extends Vector, K>(
+  dataPoints: readonly TPoint[],
+  keyFn: PointTransformer<TPoint, K>,
+  coordsFnOrOptions?: PointTransformer<TPoint, TCoords> | KMeansWeightingOptions<TPoint>,
+  options?: KMeansWeightingOptions<TPoint>,
 ) {
+  const { coordsFn, options: { weightFn = uniformWeight } = {} } = unsafeParseCoordsFnAndOptions(
+    coordsFnOrOptions,
+    options,
+  );
   const totalWeightByKey = new Map<K, number>();
   for (let i = 0; i < dataPoints.length; i++) {
     const key = keyFn(dataPoints[i], i);
@@ -93,9 +147,8 @@ export class CentroidList<T extends Vector> {
   }
 }
 
-export interface KMeansOptions<TPoint> {
+export interface KMeansOptions<TPoint> extends KMeansWeightingOptions<TPoint> {
   maxIterations?: number;
-  weightFn?: WeightFn<TPoint>;
 }
 
 export function findCentroids<T extends Vector>(
@@ -106,23 +159,19 @@ export function findCentroids<T extends Vector>(
 export function findCentroids<TPoint, TCoords extends Vector>(
   dataPoints: readonly TPoint[],
   numberOfCentroids: number,
-  coordsFn: CoordsFn<TPoint, TCoords>,
+  coordsFn: PointTransformer<TPoint, TCoords>,
   options?: KMeansOptions<TPoint>,
 ): CentroidList<TCoords>;
 export function findCentroids<TPoint, TCoords extends Vector>(
   dataPoints: readonly TPoint[],
   numberOfCentroids: number,
-  coordsFnOrOptions?: CoordsFn<TPoint, TCoords> | KMeansOptions<TPoint>,
+  coordsFnOrOptions?: PointTransformer<TPoint, TCoords> | KMeansOptions<TPoint>,
   options?: KMeansOptions<TPoint>,
 ) {
-  const coordsFn =
-    typeof coordsFnOrOptions === "function"
-      ? coordsFnOrOptions
-      : // The only overload that makes coordsFn optional is the one that forces TPoint and TCoords to be the same type.
-        // Hence why this cast is sound.
-        (point: TPoint) => point as unknown as TCoords;
-  const { maxIterations = 500, weightFn = uniformWeight } =
-    (typeof coordsFnOrOptions === "function" ? options : coordsFnOrOptions) ?? {};
+  const { coordsFn, options: { maxIterations = 500, weightFn = uniformWeight } = {} } = unsafeParseCoordsFnAndOptions(
+    coordsFnOrOptions,
+    options,
+  );
 
   let centroids = chooseInitialCentroids(dataPoints, numberOfCentroids, coordsFn, weightFn);
   let oldAssignments: number[] | undefined;
@@ -138,7 +187,7 @@ export function findCentroids<TPoint, TCoords extends Vector>(
       dataPoints,
       (_, dataPointIdx) => newAssignments[dataPointIdx],
       coordsFn,
-      weightFn,
+      { weightFn },
     );
     const newCentroids: ComputedVector<TCoords>[] = [];
     for (let centroidIdx = 0; centroidIdx < centroids.length; centroidIdx++) {
@@ -156,7 +205,7 @@ export function findCentroids<TPoint, TCoords extends Vector>(
 function chooseInitialCentroids<TPoint, TCoords extends Vector>(
   dataPoints: readonly TPoint[],
   numberOfCentroids: number,
-  coordsFn: CoordsFn<TPoint, TCoords>,
+  coordsFn: PointTransformer<TPoint, TCoords>,
   weightFn: WeightFn<TPoint>,
 ) {
   if (numberOfCentroids < 1) {
@@ -196,42 +245,45 @@ function chooseAtRandomWithWeights<T>(items: readonly T[], weightFn: WeightFn<T>
   return -1;
 }
 
-export type KMeansVarianceOptions<TPoint> = Pick<KMeansOptions<TPoint>, "weightFn">;
-
 export function computeVariance<T extends Vector>(
   dataPoints: readonly T[],
   centroids: CentroidList<T>,
-  options?: KMeansVarianceOptions<T>,
+  options?: KMeansWeightingOptions<T>,
 ): number;
 export function computeVariance<TPoint, TCoords extends Vector>(
   dataPoints: readonly TPoint[],
   centroids: CentroidList<TCoords>,
-  coordsFn: CoordsFn<TPoint, TCoords>,
-  options?: KMeansVarianceOptions<TPoint>,
+  coordsFn: PointTransformer<TPoint, TCoords>,
+  options?: KMeansWeightingOptions<TPoint>,
 ): number;
 export function computeVariance<TPoint, TCoords extends Vector>(
   dataPoints: readonly TPoint[],
   centroids: CentroidList<TCoords>,
-  coordsFnOrOptions?: CoordsFn<TPoint, TCoords> | KMeansOptions<TPoint>,
-  options?: KMeansOptions<TPoint>,
+  coordsFnOrOptions?: PointTransformer<TPoint, TCoords> | KMeansOptions<TPoint>,
+  options?: KMeansWeightingOptions<TPoint>,
+) {
+  const { coordsFn, options: { weightFn = uniformWeight } = {} } = unsafeParseCoordsFnAndOptions(
+    coordsFnOrOptions,
+    options,
+  );
+  const squareDistances = dataPoints.map((point, idx) => [centroids.distanceTo(coordsFn(point, idx))] as const);
+  return computeMean(
+    dataPoints,
+    (_, idx) => squareDistances[idx],
+    { weightFn },
+  )[0];
+}
+
+function unsafeParseCoordsFnAndOptions<TPoint, TCoords, TOptions extends KMeansWeightingOptions<TPoint>>(
+  coordsFnOrOptions: PointTransformer<TPoint, TCoords> | TOptions | undefined,
+  options: TOptions | undefined,
 ) {
   const coordsFn =
     typeof coordsFnOrOptions === "function"
       ? coordsFnOrOptions
-      : // The only overload that makes coordsFn optional is the one that forces TPoint and TCoords to be the same type.
-        // Hence why this cast is sound.
+      : // This helper function is ONLY for cases where we know that the absence of the coordsFn param means that TPoint and
+        // TCoords must be the same type. Hence why we consider this cast sound.
         (point: TPoint) => point as unknown as TCoords;
-  const { weightFn = uniformWeight } = (typeof coordsFnOrOptions === "function" ? options : coordsFnOrOptions) ?? {};
-
-  const squareDistances = dataPoints.map((point, idx) => [centroids.distanceTo(coordsFn(point, idx))] as const);
-  const mean = simultaneousMeans(
-    dataPoints,
-    // We actually only want one mean here. Use a dummy key.
-    () => "variance" as const,
-    (_, idx) => squareDistances[idx],
-    weightFn,
-  ).get("variance")?.[0];
-
-  if (mean === undefined) throw new Error("At least one data point must exist and have positive weight.");
-  return mean;
+  const effectiveOptions = typeof coordsFnOrOptions === "function" ? options : coordsFnOrOptions;
+  return { coordsFn, options: effectiveOptions };
 }

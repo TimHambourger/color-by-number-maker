@@ -1,5 +1,5 @@
 import { DIM_COLOR, EXPECTED_COLOR, RECEIVED_COLOR } from "jest-matcher-utils";
-import { CentroidList, euclideanDistanceSquared, findCentroids, simultaneousMeans } from "./kMeansPlusPlus";
+import { CentroidList, computeMean, euclideanDistanceSquared, findCentroids } from "./kMeansPlusPlus";
 
 type Point3D = readonly [number, number, number];
 
@@ -184,12 +184,7 @@ test("chained findCentroids calls converge on the true centroid", () => {
   const initialPoints = randomPoints(numPoints);
   const initialWeights = initialPoints.map(() => Math.random() * 3 + 0.1);
 
-  const trueCentroid = simultaneousMeans(
-    initialPoints,
-    () => "centroid" as const,
-    (point) => point,
-    (_, i) => initialWeights[i],
-  ).get("centroid")!;
+  const trueCentroid = computeMean(initialPoints, { weightFn: (_, i) => initialWeights[i] });
 
   let points = initialPoints;
   let weights = initialWeights;
