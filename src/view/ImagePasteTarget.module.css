@@ -1,0 +1,7 @@
+.pasteTarget {
+  line-height: 24px;
+}
+
+.validationError {
+  color: red;
+}
