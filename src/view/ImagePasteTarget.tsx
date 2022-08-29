@@ -1,5 +1,21 @@
+import { rule } from "app/nano";
 import { ClipboardEventHandler, useState } from "react";
-import styles from "./ImagePasteTarget.module.css";
+import { ALERT, GRAY_MEDIUM } from "../app/colorPalette";
+
+const CX_PASTE_TARGET = rule({
+  border: "none",
+  borderRadius: "4px",
+  boxShadow: "2px 2px 5px rgba(0, 0, 0, 0.1)",
+  color: GRAY_MEDIUM,
+  padding: "12px 10px",
+  width: "100%",
+});
+
+const CX_VALIDATION_ERROR = rule({
+  color: ALERT,
+  fontSize: "13px",
+  margin: "6px 4px",
+});
 
 export interface ImagePasteTargetProps {
   onPaste: (dataUrl: string) => void;
@@ -31,14 +47,14 @@ const ImagePasteTarget: React.FC<ImagePasteTargetProps> = ({ onPaste }) => {
     <div>
       <div>
         <input
-          className={styles.pasteTarget}
-          value=""
+          className={CX_PASTE_TARGET}
+          value="Paste image here"
           // Disables the React warning about whether we REALLy wanted a readOnly field here. We do.
           readOnly
           onPaste={pasteEventHandler}
         />
       </div>
-      {validationError && <div className={styles.validationError}>{validationError}</div>}
+      {validationError && <div className={CX_VALIDATION_ERROR}>{validationError}</div>}
     </div>
   );
 };

@@ -1,4 +1,7 @@
-import styles from "./PrimaryButton.module.css";
+import { rule } from "app/nano";
 import { styledButton } from "./styledButton";
 
-export default styledButton(styles.primaryButton);
+export default styledButton(rule({
+  padding: "8px",
+  textTransform: "uppercase",
+}));
