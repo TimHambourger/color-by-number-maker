@@ -90,6 +90,9 @@ const slice = createSlice({
   initialState,
   reducers: {
     setDataUrl({ state }, action: PayloadAction<string>) {
+      if (state.selectImage.dataUrl !== action.payload) {
+        state.selectImage.cropZone = undefined;
+      }
       state.selectImage.dataUrl = action.payload;
     },
     setCropZone({ state }, action: PayloadAction<CropZone>) {

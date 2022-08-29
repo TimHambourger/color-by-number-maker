@@ -1,7 +1,8 @@
 import { useAppDispatch, useLoadedImage } from "app/hooks";
 import { rule } from "app/nano";
 import { ColorByNumberMakerPhase, useColorByNumberMakerState } from "app/slice";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import CroppableImage from "./CroppableImage";
 import ImagePasteTarget from "./ImagePasteTarget";
 import LinkButton from "./LinkButton";
 
@@ -53,54 +54,50 @@ const AddOrReplaceImage: React.FC<AddOrReplaceImageProps> = ({ setIsReplacingIma
 
 interface CropImageProps extends HasSetIsReplacingImage {}
 
-const CANVAS_CSS_WIDTH = 400;
-const DEFAULT_CANVAS_HEIGHT = 240;
-
-const CX_CANVAS_CONTAINER = rule({
+const CX_IMAGE_CONTAINER = rule({
   textAlign: "center",
 });
 
+const CX_CROP_IMAGE_LINKS = rule({
+  display: "flex",
+  justifyContent: "space-between",
+});
+
 const CropImage: React.FC<CropImageProps> = ({ setIsReplacingImage }) => {
+  const dispatch = useAppDispatch();
   const {
     state: {
-      selectImage: { dataUrl },
+      selectImage: { dataUrl, cropZone },
     },
+    setCropZone,
   } = useColorByNumberMakerState();
 
-  const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
   const image = useLoadedImage(dataUrl);
-
-  // Draw the image on the <canvas> and setImageDimensions
-  useEffect(() => {
-    if (canvasElement && image) {
-      const context = canvasElement.getContext("2d");
-      if (!context) {
-        throw new Error("Unable to obtain canvas 2d rendering context.");
-      }
-      canvasElement.width = image.width;
-      canvasElement.height = image.height;
-      context.drawImage(image, 0, 0);
-    }
-  }, [canvasElement, image]);
-
-  // TODO: Actually support cropping!
 
   return (
     <>
-      <div className={CX_INSTRUCTIONS}>
-        Crop your image before continuing.
-      </div>
-      <div className={CX_CANVAS_CONTAINER}>
-        <canvas
-          ref={setCanvasElement}
-          style={{
-            width: CANVAS_CSS_WIDTH,
-            height: image ? (CANVAS_CSS_WIDTH / image.width) * image.height : DEFAULT_CANVAS_HEIGHT,
-          }}
+      <div className={CX_INSTRUCTIONS}>Crop your image before continuing.</div>
+      <div className={CX_IMAGE_CONTAINER}>
+        <CroppableImage
+          loadedImage={image}
+          width={400}
+          cropZone={cropZone}
+          onCrop={(newCropZone) => dispatch(setCropZone(newCropZone))}
         />
       </div>
-      <div>
+      {cropZone && (
+        <div>
+          Width : height ratio = {cropZone.width / cropZone.height}
+          {/* TODO: Provide guidance about good ratios for portrait vs landscape. */}
+        </div>
+      )}
+      <div className={CX_CROP_IMAGE_LINKS}>
         <LinkButton onClick={() => setIsReplacingImage(true)}>Change image</LinkButton>
+        {image && (
+          <LinkButton onClick={() => dispatch(setCropZone({ x: 0, y: 0, width: image.width, height: image.height }))}>
+            Select whole image
+          </LinkButton>
+        )}
       </div>
     </>
   );
