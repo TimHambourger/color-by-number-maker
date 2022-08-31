@@ -1,3 +1,5 @@
+import { constrain } from "lib/constrain";
+
 export type RgbVector = [red: number, green: number, blue: number];
 
 export class RgbColor {
@@ -29,7 +31,7 @@ export class RgbColor {
   }
 
   private hexify(colorAmount: number) {
-    return Math.max(Math.min(Math.round(colorAmount), 255), 0).toString(16);
+    return constrain(Math.round(colorAmount), 0, 255).toString(16);
   }
 
   private static HEX_CODE = /^#?([a-f]{3}|[a-f]{6})$/i;

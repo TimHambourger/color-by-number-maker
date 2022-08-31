@@ -1,5 +1,6 @@
 import { GRAY_DARK } from "app/colorPalette";
 import { rule } from "app/nano";
+import { ColorByNumberMakerPhase, useColorByNumberMakerState } from "app/slice";
 import GenerateColors from "view/GenerateColors";
 import PhaseIndicator from "view/PhaseIndicator";
 import PrepareForPrint from "view/PrepareForPrint";
@@ -14,13 +15,23 @@ const CX_APP_BODY = rule({
   "-moz-osx-font-smoothing": "grayscale",
 });
 
-const App: React.FC = () => (
-  <div className={CX_APP_BODY}>
-    <PhaseIndicator />
-    <SelectImage />
-    <GenerateColors />
-    <PrepareForPrint />
-    <Print />
-  </div>
-);
+const App: React.FC = () => {
+  const {
+    state: { phase },
+  } = useColorByNumberMakerState();
+  return (
+    <div className={CX_APP_BODY}>
+      <PhaseIndicator />
+      {phase === ColorByNumberMakerPhase.SelectImage ? (
+        <SelectImage />
+      ) : phase === ColorByNumberMakerPhase.GenerateColors ? (
+        <GenerateColors />
+      ) : phase === ColorByNumberMakerPhase.PrepareForPrint ? (
+        <PrepareForPrint />
+      ) : phase === ColorByNumberMakerPhase.Print ? (
+        <Print />
+      ) : null}
+    </div>
+  );
+};
 export default App;

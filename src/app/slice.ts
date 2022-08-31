@@ -1,5 +1,5 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { RgbColor } from "../lib/color";
+import { createSlice, Draft, PayloadAction } from "@reduxjs/toolkit";
+import { RgbVector } from "../lib/color";
 import { useAppSelector } from "./hooks";
 import { RootState } from "./store";
 
@@ -11,6 +11,13 @@ export enum ColorByNumberMakerPhase {
 }
 
 /**
+ * All possible color-by-number-maker phases, in order from first to last.
+ */
+export const ALL_PHASES = Object.values(ColorByNumberMakerPhase)
+  .filter((val): val is ColorByNumberMakerPhase => typeof val === "number")
+  .sort((phase1, phase2) => phase1 - phase2);
+
+/**
  * Crop zone coordinates. All numbers are in pixels.
  */
 export interface CropZone {
@@ -20,21 +27,34 @@ export interface CropZone {
   height: number;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const areCropZonesEqual = (zone1: CropZone, zone2: CropZone) =>
-  zone1.x === zone2.x && zone1.y === zone2.y && zone1.width === zone2.width && zone1.height === zone2.height;
+const areCropZonesEqual = (zone1: CropZone | undefined, zone2: CropZone | undefined) =>
+  zone1 && zone2
+    ? zone1.x === zone2.x && zone1.y === zone2.y && zone1.width === zone2.width && zone1.height === zone2.height
+    : zone1 === zone2;
 
 export interface ResolvedColors {
   /**
    * The distinct colors for this color by number.
    */
-  colors: RgbColor[];
+  colors: readonly RgbVector[];
   /**
    * Array with one element for each box in the resulting color by number; that element is an index in the
    * `resolvedColors` array. Order is row by row; i.e. (row 0, column 0), then (row 0, column 1), etc.
    */
-  assignments: number[];
+  assignments: readonly number[];
 }
+
+const areResolvedColorsEqual = (colors1: ResolvedColors | undefined, colors2: ResolvedColors | undefined) =>
+  colors1 && colors2
+    ? arrayEq(colors1.colors, colors2.colors, (v1, v2) => arrayEq(v1, v2)) &&
+      arrayEq(colors1.assignments, colors2.assignments)
+    : colors1 === colors2;
+
+const arrayEq = <T>(
+  array1: readonly T[],
+  array2: readonly T[],
+  areItemsEqual: (item1: T, item2: T) => boolean = (item1, item2) => item1 === item2,
+) => array1.length === array2.length && array1.every((item, idx) => areItemsEqual(item, array1[idx]));
 
 export interface SelectImageState {
   dataUrl?: string;
@@ -48,75 +68,87 @@ export interface GenerateColorsState {
   resolvedColors?: ResolvedColors;
 }
 
-export interface PrepareForPrintState {
-  // TODO...
+export interface ColorByNumberMakerState {
+  phase: ColorByNumberMakerPhase;
+
+  // SelectImage...
+  dataUrl?: string;
+  cropZone?: CropZone;
+
+  // GenerateColors...
+  boxesWide: number;
+  boxesHigh: number;
+  maxColors: number;
+  resolvedColors?: ResolvedColors;
+
+  // TODO: PrepareForPrint...
 }
 
-interface PartialColorByNumberMakerState {
-  selectImage: SelectImageState;
-  generateColors: GenerateColorsState;
-  prepareForPrint: PrepareForPrintState;
-}
-
-type StateForPhase<Phase extends ColorByNumberMakerPhase, PriorPhases extends keyof PartialColorByNumberMakerState> = {
-  phase: Phase;
-} & {
-  [Key in keyof PartialColorByNumberMakerState]: Key extends PriorPhases
-    ? Required<PartialColorByNumberMakerState[Key]>
-    : PartialColorByNumberMakerState[Key];
+const initialState: ColorByNumberMakerState = {
+  phase: ColorByNumberMakerPhase.SelectImage,
+  boxesWide: 40,
+  boxesHigh: 40,
+  maxColors: 8,
 };
 
-export type ColorByNumberMakerState =
-  | StateForPhase<ColorByNumberMakerPhase.SelectImage, never>
-  | StateForPhase<ColorByNumberMakerPhase.GenerateColors, "selectImage">
-  | StateForPhase<ColorByNumberMakerPhase.PrepareForPrint, "selectImage" | "generateColors">
-  | StateForPhase<ColorByNumberMakerPhase.Print, "selectImage" | "generateColors" | "prepareForPrint">;
+type InvalidatedKey = Exclude<keyof ColorByNumberMakerState, "phase">;
 
-const initialState: { state: ColorByNumberMakerState } = {
-  state: {
-    phase: ColorByNumberMakerPhase.SelectImage,
-    selectImage: {},
-    generateColors: {
-      boxesWide: 40,
-      boxesHigh: 40,
-      maxColors: 8,
-    },
-    prepareForPrint: {},
-  },
+// Object mapping from state keys to the other state keys that are invalidated by the given state key.
+const INVALIDATED_BY: { [Key in InvalidatedKey]: InvalidatedKey[] } = {
+  dataUrl: ["cropZone"],
+  cropZone: ["resolvedColors"],
+  boxesWide: ["resolvedColors"],
+  boxesHigh: ["resolvedColors"],
+  maxColors: ["resolvedColors"],
+  resolvedColors: [],
+};
+
+const invalidate = (state: ColorByNumberMakerState, key: InvalidatedKey) => {
+  for (const invalidated of INVALIDATED_BY[key]) resetAndInvalidate(state, invalidated);
+};
+
+const resetAndInvalidate = (state: ColorByNumberMakerState, key: InvalidatedKey) => {
+  (state as any)[key] = initialState[key];
+  invalidate(state, key);
 };
 
 const slice = createSlice({
   name: "color-by-number-maker-slice",
   initialState,
   reducers: {
-    setDataUrl({ state }, action: PayloadAction<string>) {
-      if (state.selectImage.dataUrl !== action.payload) {
-        state.selectImage.cropZone = undefined;
-      }
-      state.selectImage.dataUrl = action.payload;
+    setPhase(state, action: PayloadAction<ColorByNumberMakerPhase>) {
+      state.phase = action.payload;
     },
-    setCropZone({ state }, action: PayloadAction<CropZone>) {
-      state.selectImage.cropZone = action.payload;
+    setDataUrl(state, action: PayloadAction<string>) {
+      if (state.dataUrl !== action.payload) invalidate(state, "dataUrl");
+      state.dataUrl = action.payload;
     },
-    setBoxesWide({ state }, action: PayloadAction<number>) {
-      state.generateColors.boxesWide = action.payload;
+    setCropZone(state, action: PayloadAction<CropZone>) {
+      if (!areCropZonesEqual(state.cropZone, action.payload)) invalidate(state, "cropZone");
+      state.cropZone = action.payload;
     },
-    setBoxesHigh({ state }, action: PayloadAction<number>) {
-      state.generateColors.boxesHigh = action.payload;
+    setBoxesWide(state, action: PayloadAction<number>) {
+      if (state.boxesWide !== action.payload) invalidate(state, "boxesWide");
+      state.boxesWide = action.payload;
     },
-    setMaxColors({ state }, action: PayloadAction<number>) {
-      state.generateColors.maxColors = action.payload;
+    setBoxesHigh(state, action: PayloadAction<number>) {
+      if (state.boxesHigh !== action.payload) invalidate(state, "boxesHigh");
+      state.boxesHigh = action.payload;
     },
-    setResolvedColors({ state }, action: PayloadAction<ResolvedColors>) {
-      state.generateColors.resolvedColors = action.payload;
+    setMaxColors(state, action: PayloadAction<number>) {
+      if (state.maxColors !== action.payload) invalidate(state, "maxColors");
+      state.maxColors = action.payload;
     },
-    // TODO: reducers for changing phase...
+    setResolvedColors(state, action: PayloadAction<ResolvedColors | undefined>) {
+      if (!areResolvedColorsEqual(state.resolvedColors, action.payload)) invalidate(state, "resolvedColors");
+      state.resolvedColors = action.payload as Draft<ResolvedColors> | undefined;
+    },
   },
 });
 
 export const reducer = slice.reducer;
 
-const selector = ({ state }: RootState) => state;
+const selector = (state: RootState) => state;
 
 export const useColorByNumberMakerState = () => {
   const state = useAppSelector(selector);

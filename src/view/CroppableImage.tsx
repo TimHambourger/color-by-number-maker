@@ -1,5 +1,7 @@
+import { WHITE } from "app/colorPalette";
 import { rule } from "app/nano";
 import { CropZone } from "app/slice";
+import { constrain } from "lib/constrain";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const DEFAULT_WIDTH_TO_HEIGHT_RATIO = 5 / 3;
@@ -15,8 +17,7 @@ const CX_CANVAS = rule({
 });
 
 const CX_CROP_ZONE = rule({
-  border: "2px dashed #fff",
-  boxSizing: "border-box",
+  border: `2px dashed ${WHITE}`,
   position: "absolute",
 });
 
@@ -46,10 +47,10 @@ const CroppableImage: React.FC<CroppableImageProps> = ({ loadedImage: image, wid
   const cropZonePositioning = useMemo(() => {
     if (!cropZone || !image) return undefined;
     const { x, y, width, height } = cropZone;
-    const relativeTop = Math.min(Math.max(y / image.height, 0), 1);
-    const relativeHeight = Math.min(Math.max(height / image.height, 0), 1 - relativeTop);
-    const relativeLeft = Math.min(Math.max(x / image.width, 0), 1);
-    const relativeWidth = Math.min(Math.max(width / image.width, 0), 1 - relativeLeft);
+    const relativeTop = constrain(y / image.height, 0, 1);
+    const relativeHeight = constrain(height / image.height, 0, 1 - relativeTop);
+    const relativeLeft = constrain(x / image.width, 0, 1);
+    const relativeWidth = constrain(width / image.width, 0, 1 - relativeLeft);
     return {
       top: `${relativeTop * 100}%`,
       height: `${relativeHeight * 100}%`,
@@ -93,13 +94,13 @@ const CroppableImage: React.FC<CroppableImageProps> = ({ loadedImage: image, wid
       if (image && coordsTx) {
         const imageX = coordsTx.clientXToImageX(e.clientX);
         const imageY = coordsTx.clientYToImageY(e.clientY);
-        const cropZoneX = Math.min(Math.max(Math.min(imageX, cropGestureStart.x), 0), image.width);
-        const cropZoneY = Math.min(Math.max(Math.min(imageY, cropGestureStart.y), 0), image.height);
+        const cropZoneX = constrain(Math.min(imageX, cropGestureStart.x), 0, image.width);
+        const cropZoneY = constrain(Math.min(imageY, cropGestureStart.y), 0, image.height);
         onCrop({
           x: cropZoneX,
           y: cropZoneY,
-          width: Math.min(Math.max(imageX, cropGestureStart.x, cropZoneX), image.width) - cropZoneX,
-          height: Math.min(Math.max(imageY, cropGestureStart.y, cropZoneY), image.height) - cropZoneY,
+          width: constrain(Math.max(imageX, cropGestureStart.x), cropZoneX, image.width) - cropZoneX,
+          height: constrain(Math.max(imageY, cropGestureStart.y), cropZoneY, image.height) - cropZoneY,
         });
       }
     },

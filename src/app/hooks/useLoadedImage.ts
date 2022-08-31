@@ -28,5 +28,5 @@ export const useLoadedImage = (url: string | null | undefined) => {
     }
   }, [image, onImageLoad]);
 
-  return imageLoaded ? image : undefined;
+  return imageLoaded && image && image.width > 0 && image.height > 0 ? image : undefined;
 };

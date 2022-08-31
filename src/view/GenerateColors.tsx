@@ -1,116 +1,178 @@
 import { BEST_N_KMEANS_OF, IMPLIED_BACKGROUND_COLOR } from "app/constants";
-import { ColorByNumberMakerPhase, useColorByNumberMakerState } from "app/slice";
+import { useAppDispatch, useImageData } from "app/hooks";
+import { rule } from "app/nano";
+import { useColorByNumberMakerState } from "app/slice";
 import { averageColors } from "lib/averageColors";
 import { RgbColor, RgbVector } from "lib/color";
+import { constrain } from "lib/constrain";
 import { CentroidList, computeVariance, findCentroids } from "lib/kMeansPlusPlus";
-import { useEffect, useMemo, useState } from "react";
-
-// Will replace this with file picking and image pasting capabilities on the 1st screen of the wizard.
-const image = document.createElement("img");
-image.src = `${process.env.PUBLIC_URL}/th-2751800954.jpg`;
-
-// TODO: Get these from redux...
-const NUM_BOXES_WIDE = 40;
-const NUM_BOXES_HIGH = 40;
-const NUM_COLORS = 10;
+import { useEffect, useMemo } from "react";
+import DebouncedIntegerInput from "./DebouncedIntegerInput";
+import LinkButton from "./LinkButton";
+import WizardNavigationControls from "./WizardNavigationControls";
 
 // As a fraction of the width of a single box.
 const LINE_WIDTH = 0.1;
 
-interface ColorAssignments {
-  colors: RgbColor[];
-  assignments: number[];
-}
+const CX_GENERATE_COLORS = rule({
+  margin: "10px auto",
+  width: "600px",
+});
+
+const CX_PREVIEW_SHELL = rule({
+  textAlign: "center",
+});
+
+const CX_LOADING_TEXT = rule({
+  height: "200px",
+  textAlign: "center",
+});
+
+const CX_COLOR_SETTINGS = rule({
+  marginTop: "6px",
+});
+
+const CX_COLOR_SETTINGS_ROW = rule({
+  display: "flex",
+  justifyContent: "space-between",
+  margin: "6px 0",
+});
+
+const CX_COLOR_SETTINGS_INPUT_LABEL = rule({
+  textAlign: "right",
+  width: "175px",
+});
+
+const CX_COLOR_SETTINGS_INPUT = rule({
+  width: "80px",
+});
 
 const GenerateColors: React.FC = () => {
-  const { state } = useColorByNumberMakerState();
-
-  const [imageData, setImageData] = useState<ImageData | undefined>();
-  const [colorAssignments, setColorAssignments] = useState<ColorAssignments | undefined>();
-
-  useEffect(() => {
-    image.addEventListener("load", () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = image.width;
-      canvas.height = image.height;
-      const context = canvas.getContext("2d");
-      if (!context) throw new Error("Unable to obtain canvas 2D rendering context.");
-      context.drawImage(image, 0, 0);
-      setImageData(context.getImageData(0, 0, image.width, image.height));
-    });
-  }, []);
+  const dispatch = useAppDispatch();
+  const {
+    state: { dataUrl, cropZone, boxesWide, boxesHigh, maxColors, resolvedColors },
+    setBoxesWide,
+    setBoxesHigh,
+    setMaxColors,
+    setResolvedColors,
+  } = useColorByNumberMakerState();
+  const imageData = useImageData(dataUrl, cropZone);
 
   const averagedColors = useMemo(
-    () => imageData && averageColors(imageData, NUM_BOXES_WIDE, NUM_BOXES_HIGH, IMPLIED_BACKGROUND_COLOR),
-    [imageData],
+    () =>
+      imageData &&
+      averageColors(
+        imageData,
+        constrain(boxesWide, 1, imageData.width),
+        constrain(boxesHigh, 1, imageData.height),
+        IMPLIED_BACKGROUND_COLOR,
+      ),
+    [imageData, boxesWide, boxesHigh],
   );
-  const [reassignColorsCount, setReassignColorsCount] = useState(0);
-
   useEffect(() => {
-    if (averagedColors) {
+    if (averagedColors && !resolvedColors) {
       // TODO: Compute in parallel with workers.
       let centroids: CentroidList<RgbVector>;
       let minVariance: number | undefined;
       for (let i = 0; i < BEST_N_KMEANS_OF; i++) {
-        const newCentroids = findCentroids(averagedColors, NUM_COLORS);
+        const newCentroids = findCentroids(averagedColors, maxColors);
         const newVariance = computeVariance(averagedColors, newCentroids);
         if (minVariance === undefined || newVariance < minVariance) {
           centroids = newCentroids;
           minVariance = newVariance;
         }
       }
-      setColorAssignments({
-        colors: centroids!.centroids.map(RgbColor.fromVector),
-        assignments: averagedColors.map((color) => centroids!.classify(color)),
-      });
+      dispatch(
+        setResolvedColors({
+          colors: centroids!.centroids,
+          assignments: averagedColors.map((color) => centroids!.classify(color)),
+        }),
+      );
     }
-    return () => setColorAssignments(undefined);
-  }, [averagedColors, reassignColorsCount]);
+  }, [averagedColors, resolvedColors, dispatch, setResolvedColors, maxColors]);
 
-  return state.phase === ColorByNumberMakerPhase.GenerateColors ? (
-    <div>
-      {colorAssignments ? (
-        <div>
-          <div>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox={`${-LINE_WIDTH / 2} ${-LINE_WIDTH / 2} ${NUM_BOXES_WIDE + LINE_WIDTH} ${
-                NUM_BOXES_HIGH + LINE_WIDTH
-              }`}
-              preserveAspectRatio="none"
-              style={{
-                width: 400,
-                height: (400 / image.width) * image.height,
-              }}
-            >
-              <rect
-                x={-LINE_WIDTH / 2}
-                y={-LINE_WIDTH / 2}
-                width={NUM_BOXES_WIDE + LINE_WIDTH}
-                height={NUM_BOXES_HIGH + LINE_WIDTH}
-              />
-              {colorAssignments.assignments.map((colorIndex, assignmentIndex) => (
+  return (
+    <div className={CX_GENERATE_COLORS}>
+      {cropZone && (
+        <>
+          {resolvedColors ? (
+            <div className={CX_PREVIEW_SHELL}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox={`${-LINE_WIDTH / 2} ${-LINE_WIDTH / 2} ${boxesWide + LINE_WIDTH} ${boxesHigh + LINE_WIDTH}`}
+                preserveAspectRatio="none"
+                style={{
+                  width: 400,
+                  height: (400 / cropZone.width) * cropZone.height,
+                }}
+              >
                 <rect
-                  key={assignmentIndex}
-                  x={assignmentIndex % NUM_BOXES_WIDE}
-                  y={Math.floor(assignmentIndex / NUM_BOXES_WIDE)}
-                  width={1}
-                  height={1}
-                  fill={colorAssignments.colors[colorIndex].toHexCode()}
-                  stroke="#000"
-                  strokeWidth={LINE_WIDTH / 2}
+                  x={-LINE_WIDTH / 2}
+                  y={-LINE_WIDTH / 2}
+                  width={boxesWide + LINE_WIDTH}
+                  height={boxesHigh + LINE_WIDTH}
                 />
-              ))}
-            </svg>
+                {resolvedColors.assignments.map((colorIndex, assignmentIndex) => (
+                  <rect
+                    key={assignmentIndex}
+                    x={assignmentIndex % boxesWide}
+                    y={Math.floor(assignmentIndex / boxesWide)}
+                    width={1}
+                    height={1}
+                    fill={RgbColor.fromVector(resolvedColors.colors[colorIndex]).toHexCode()}
+                    stroke="#000"
+                    strokeWidth={LINE_WIDTH / 2}
+                  />
+                ))}
+              </svg>
+            </div>
+          ) : (
+            <div className={CX_LOADING_TEXT}>Constructing color by number preview...</div>
+          )}
+          <div className={CX_COLOR_SETTINGS}>
+            <div className={CX_COLOR_SETTINGS_ROW}>
+              <label className={CX_COLOR_SETTINGS_INPUT_LABEL}>
+                Boxes Wide{" "}
+                <DebouncedIntegerInput
+                  className={CX_COLOR_SETTINGS_INPUT}
+                  value={boxesWide}
+                  onChange={(value) => dispatch(setBoxesWide(value))}
+                  minValue={1}
+                  maxValue={cropZone.width}
+                  waitMillis={500}
+                />
+              </label>
+              <label className={CX_COLOR_SETTINGS_INPUT_LABEL}>
+                Max Colors{" "}
+                <DebouncedIntegerInput
+                  className={CX_COLOR_SETTINGS_INPUT}
+                  value={maxColors}
+                  onChange={(value) => dispatch(setMaxColors(value))}
+                  minValue={1}
+                  maxValue={50}
+                  waitMillis={500}
+                />
+              </label>
+            </div>
+            <div className={CX_COLOR_SETTINGS_ROW}>
+              <label className={CX_COLOR_SETTINGS_INPUT_LABEL}>
+                Boxes High{" "}
+                <DebouncedIntegerInput
+                  className={CX_COLOR_SETTINGS_INPUT}
+                  value={boxesHigh}
+                  onChange={(value) => dispatch(setBoxesHigh(value))}
+                  minValue={1}
+                  maxValue={cropZone.height}
+                  waitMillis={500}
+                />
+              </label>
+              <LinkButton onClick={() => dispatch(setResolvedColors())}>Regenerate Colors</LinkButton>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div>Constructing color by number preview...</div>
+        </>
       )}
-      <div>
-        <button onClick={() => setReassignColorsCount((count) => count + 1)}>Regenerate Colors</button>
-      </div>
+      <WizardNavigationControls forwardIsDisabled />
     </div>
-  ) : null;
+  );
 };
 export default GenerateColors;

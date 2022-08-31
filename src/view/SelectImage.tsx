@@ -1,21 +1,17 @@
 import { useAppDispatch, useLoadedImage } from "app/hooks";
 import { rule } from "app/nano";
-import { ColorByNumberMakerPhase, useColorByNumberMakerState } from "app/slice";
+import { useColorByNumberMakerState } from "app/slice";
 import { useState } from "react";
 import CroppableImage from "./CroppableImage";
 import ImagePasteTarget from "./ImagePasteTarget";
 import LinkButton from "./LinkButton";
-
-const CX_LANDING_PAGE_TITLE = rule({
-  fontSize: "24px",
-  textAlign: "center",
-});
+import WizardNavigationControls from "./WizardNavigationControls";
 
 const CX_INSTRUCTIONS = rule({
   marginBottom: "12px",
 });
 
-const CX_LANDING_PAGE_LINKS = rule({
+const CX_MORE_ACTIONS = rule({
   marginTop: "6px",
 });
 
@@ -23,14 +19,17 @@ interface HasSetIsReplacingImage {
   setIsReplacingImage: (value: boolean) => void;
 }
 
+const CX_LANDING_PAGE_TITLE = rule({
+  fontSize: "24px",
+  textAlign: "center",
+});
+
 interface AddOrReplaceImageProps extends HasSetIsReplacingImage {}
 
 const AddOrReplaceImage: React.FC<AddOrReplaceImageProps> = ({ setIsReplacingImage }) => {
   const dispatch = useAppDispatch();
   const {
-    state: {
-      selectImage: { dataUrl },
-    },
+    state: { dataUrl },
     setDataUrl,
   } = useColorByNumberMakerState();
   const onReceiveImage = (dataUrl: string) => {
@@ -44,7 +43,7 @@ const AddOrReplaceImage: React.FC<AddOrReplaceImageProps> = ({ setIsReplacingIma
       <div className={CX_INSTRUCTIONS}>Paste your image below to get started.</div>
       <ImagePasteTarget onPaste={onReceiveImage} />
       {dataUrl && (
-        <div className={CX_LANDING_PAGE_LINKS}>
+        <div className={CX_MORE_ACTIONS}>
           <LinkButton onClick={() => setIsReplacingImage(false)}>Keep previous image</LinkButton>
         </div>
       )}
@@ -63,12 +62,20 @@ const CX_CROP_IMAGE_LINKS = rule({
   justifyContent: "space-between",
 });
 
+const CX_ASPECT_RATIO_CONTAINER = rule({
+  fontSize: "12px",
+  marginTop: "6px",
+  textAlign: "center",
+});
+
+const CX_ASPECT_RATIO = rule({
+  fontWeight: "bold",
+});
+
 const CropImage: React.FC<CropImageProps> = ({ setIsReplacingImage }) => {
   const dispatch = useAppDispatch();
   const {
-    state: {
-      selectImage: { dataUrl, cropZone },
-    },
+    state: { dataUrl, cropZone },
     setCropZone,
   } = useColorByNumberMakerState();
 
@@ -76,7 +83,7 @@ const CropImage: React.FC<CropImageProps> = ({ setIsReplacingImage }) => {
 
   return (
     <>
-      <div className={CX_INSTRUCTIONS}>Crop your image before continuing.</div>
+      <div className={CX_INSTRUCTIONS}>Crop your image then click CONTINUE.</div>
       <div className={CX_IMAGE_CONTAINER}>
         <CroppableImage
           loadedImage={image}
@@ -85,13 +92,7 @@ const CropImage: React.FC<CropImageProps> = ({ setIsReplacingImage }) => {
           onCrop={(newCropZone) => dispatch(setCropZone(newCropZone))}
         />
       </div>
-      {cropZone && (
-        <div>
-          Width : height ratio = {cropZone.width / cropZone.height}
-          {/* TODO: Provide guidance about good ratios for portrait vs landscape. */}
-        </div>
-      )}
-      <div className={CX_CROP_IMAGE_LINKS}>
+      <div className={CX_MORE_ACTIONS + CX_CROP_IMAGE_LINKS}>
         <LinkButton onClick={() => setIsReplacingImage(true)}>Change image</LinkButton>
         {image && (
           <LinkButton onClick={() => dispatch(setCropZone({ x: 0, y: 0, width: image.width, height: image.height }))}>
@@ -99,6 +100,13 @@ const CropImage: React.FC<CropImageProps> = ({ setIsReplacingImage }) => {
           </LinkButton>
         )}
       </div>
+      {cropZone && (
+        <div className={CX_ASPECT_RATIO_CONTAINER}>
+          <div className={CX_ASPECT_RATIO}>Aspect ratio = {(cropZone.width / cropZone.height).toFixed(2)}</div>
+          <div>Suggested ratios: Portrait = 1.0, Landscape = 1.7</div>
+        </div>
+      )}
+      <WizardNavigationControls forwardIsDisabled={!dataUrl || !cropZone} />
     </>
   );
 };
@@ -110,14 +118,11 @@ const CX_SELECT_IMAGE = rule({
 
 const SelectImage: React.FC = () => {
   const {
-    state: {
-      phase,
-      selectImage: { dataUrl },
-    },
+    state: { dataUrl },
   } = useColorByNumberMakerState();
   const [isReplacingImage, setIsReplacingImage] = useState(false);
 
-  return phase === ColorByNumberMakerPhase.SelectImage ? (
+  return (
     <div className={CX_SELECT_IMAGE}>
       {!dataUrl || isReplacingImage ? (
         <AddOrReplaceImage setIsReplacingImage={setIsReplacingImage} />
@@ -125,6 +130,6 @@ const SelectImage: React.FC = () => {
         <CropImage setIsReplacingImage={setIsReplacingImage} />
       )}
     </div>
-  ) : null;
+  );
 };
 export default SelectImage;
