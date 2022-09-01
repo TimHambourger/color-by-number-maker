@@ -94,13 +94,13 @@ const CroppableImage: React.FC<CroppableImageProps> = ({ loadedImage: image, wid
       if (image && coordsTx) {
         const imageX = coordsTx.clientXToImageX(e.clientX);
         const imageY = coordsTx.clientYToImageY(e.clientY);
-        const cropZoneX = constrain(Math.min(imageX, cropGestureStart.x), 0, image.width);
-        const cropZoneY = constrain(Math.min(imageY, cropGestureStart.y), 0, image.height);
+        const cropZoneX = constrain(Math.round(Math.min(imageX, cropGestureStart.x)), 0, image.width);
+        const cropZoneY = constrain(Math.round(Math.min(imageY, cropGestureStart.y)), 0, image.height);
         onCrop({
           x: cropZoneX,
           y: cropZoneY,
-          width: constrain(Math.max(imageX, cropGestureStart.x), cropZoneX, image.width) - cropZoneX,
-          height: constrain(Math.max(imageY, cropGestureStart.y), cropZoneY, image.height) - cropZoneY,
+          width: constrain(Math.round(Math.max(imageX, cropGestureStart.x)), cropZoneX, image.width) - cropZoneX,
+          height: constrain(Math.round(Math.max(imageY, cropGestureStart.y)), cropZoneY, image.height) - cropZoneY,
         });
       }
     },
