@@ -7,9 +7,9 @@ import { RgbColor, RgbVector } from "lib/color";
 import { constrain } from "lib/constrain";
 import { CentroidList, computeVariance, findCentroids } from "lib/kMeansPlusPlus";
 import { useEffect, useMemo } from "react";
+import LinkButton from "view/LinkButton";
+import WizardNavigationControls from "view/WizardNavigationControls";
 import DebouncedIntegerInput from "./DebouncedIntegerInput";
-import LinkButton from "./LinkButton";
-import WizardNavigationControls from "./WizardNavigationControls";
 
 // As a fraction of the width of a single box.
 const LINE_WIDTH = 0.1;

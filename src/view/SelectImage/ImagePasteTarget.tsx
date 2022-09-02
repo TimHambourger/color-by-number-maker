@@ -1,6 +1,6 @@
+import { ALERT, GRAY_MEDIUM } from "app/colorPalette";
 import { rule } from "app/nano";
 import { ClipboardEventHandler, useState } from "react";
-import { ALERT, GRAY_MEDIUM } from "../app/colorPalette";
 
 const CX_PASTE_TARGET = rule({
   border: "none",

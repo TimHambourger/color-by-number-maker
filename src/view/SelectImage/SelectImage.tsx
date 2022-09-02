@@ -2,10 +2,10 @@ import { useAppDispatch, useLoadedImage } from "app/hooks";
 import { rule } from "app/nano";
 import { useColorByNumberMakerState } from "app/slice";
 import { useState } from "react";
+import LinkButton from "view/LinkButton";
+import WizardNavigationControls from "view/WizardNavigationControls";
 import CroppableImage from "./CroppableImage";
 import ImagePasteTarget from "./ImagePasteTarget";
-import LinkButton from "./LinkButton";
-import WizardNavigationControls from "./WizardNavigationControls";
 
 const CX_INSTRUCTIONS = rule({
   marginBottom: "12px",
