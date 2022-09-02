@@ -12,6 +12,7 @@ const CX_CONTAINER = rule({
 });
 
 const CX_CANVAS = rule({
+  background: `url(${process.env.PUBLIC_URL}/transparency-bg.jpg) repeat`,
   height: "100%",
   width: "100%",
 });

@@ -34,7 +34,7 @@ export class RgbColor {
     return constrain(Math.round(colorAmount), 0, 255).toString(16);
   }
 
-  private static HEX_CODE = /^#?([a-f]{3}|[a-f]{6})$/i;
+  private static HEX_CODE = /^#?([a-f0-9]{3}|[a-f0-9]{6})$/i;
 
   static fromHexCode(hexCode: string) {
     const match = hexCode.match(RgbColor.HEX_CODE);
