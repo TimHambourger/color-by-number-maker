@@ -54,7 +54,7 @@ const arrayEq = <T>(
   array1: readonly T[],
   array2: readonly T[],
   areItemsEqual: (item1: T, item2: T) => boolean = (item1, item2) => item1 === item2,
-) => array1.length === array2.length && array1.every((item, idx) => areItemsEqual(item, array1[idx]));
+) => array1.length === array2.length && array1.every((item, idx) => areItemsEqual(item, array2[idx]));
 
 export interface SelectImageState {
   dataUrl?: string;
@@ -79,6 +79,7 @@ export interface ColorByNumberMakerState {
   boxesWide: number;
   boxesHigh: number;
   maxColors: number;
+  backgroundColor: RgbVector;
   resolvedColors?: ResolvedColors;
 
   // TODO: PrepareForPrint...
@@ -89,6 +90,7 @@ const initialState: ColorByNumberMakerState = {
   boxesWide: 40,
   boxesHigh: 40,
   maxColors: 8,
+  backgroundColor: [255, 255, 255],
 };
 
 type InvalidatedKey = Exclude<keyof ColorByNumberMakerState, "phase">;
@@ -100,6 +102,7 @@ const INVALIDATED_BY: { [Key in InvalidatedKey]: InvalidatedKey[] } = {
   boxesWide: ["resolvedColors"],
   boxesHigh: ["resolvedColors"],
   maxColors: ["resolvedColors"],
+  backgroundColor: ["resolvedColors"],
   resolvedColors: [],
 };
 
@@ -138,6 +141,10 @@ const slice = createSlice({
     setMaxColors(state, action: PayloadAction<number>) {
       if (state.maxColors !== action.payload) invalidate(state, "maxColors");
       state.maxColors = action.payload;
+    },
+    setBackgroundColor(state, action: PayloadAction<RgbVector>) {
+      if (!arrayEq(state.backgroundColor, action.payload)) invalidate(state, "backgroundColor");
+      state.backgroundColor = action.payload;
     },
     setResolvedColors(state, action: PayloadAction<ResolvedColors | undefined>) {
       if (!areResolvedColorsEqual(state.resolvedColors, action.payload)) invalidate(state, "resolvedColors");

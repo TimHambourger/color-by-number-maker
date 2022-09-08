@@ -1,4 +1,3 @@
-import { BEST_N_KMEANS_OF, IMPLIED_BACKGROUND_COLOR } from "app/constants";
 import { useAppDispatch, useImageData } from "app/hooks";
 import { rule } from "app/nano";
 import { useColorByNumberMakerState } from "app/slice";
@@ -9,10 +8,12 @@ import { CentroidList, computeVariance, findCentroids } from "lib/kMeansPlusPlus
 import { useEffect, useMemo } from "react";
 import LinkButton from "view/LinkButton";
 import WizardNavigationControls from "view/WizardNavigationControls";
-import DebouncedIntegerInput from "./DebouncedIntegerInput";
+import { IntegerColorSetting, RgbVectorColorSetting } from "./ColorSetting";
 
 // As a fraction of the width of a single box.
 const LINE_WIDTH = 0.1;
+
+const BEST_KMEANS_OF_N = 6;
 
 const CX_GENERATE_COLORS = rule({
   margin: "10px auto",
@@ -38,22 +39,14 @@ const CX_COLOR_SETTINGS_ROW = rule({
   margin: "6px 0",
 });
 
-const CX_COLOR_SETTINGS_INPUT_LABEL = rule({
-  textAlign: "right",
-  width: "175px",
-});
-
-const CX_COLOR_SETTINGS_INPUT = rule({
-  width: "80px",
-});
-
 const GenerateColors: React.FC = () => {
   const dispatch = useAppDispatch();
   const {
-    state: { dataUrl, cropZone, boxesWide, boxesHigh, maxColors, resolvedColors },
+    state: { dataUrl, cropZone, boxesWide, boxesHigh, maxColors, backgroundColor, resolvedColors },
     setBoxesWide,
     setBoxesHigh,
     setMaxColors,
+    setBackgroundColor,
     setResolvedColors,
   } = useColorByNumberMakerState();
   const imageData = useImageData(dataUrl, cropZone);
@@ -65,16 +58,16 @@ const GenerateColors: React.FC = () => {
         imageData,
         constrain(boxesWide, 1, imageData.width),
         constrain(boxesHigh, 1, imageData.height),
-        IMPLIED_BACKGROUND_COLOR,
+        RgbColor.fromVector(backgroundColor),
       ),
-    [imageData, boxesWide, boxesHigh],
+    [imageData, boxesWide, boxesHigh, backgroundColor],
   );
   useEffect(() => {
     if (averagedColors && !resolvedColors) {
-      // TODO: Compute in parallel with workers.
+      // TODO: Compute in parallel with workers. See https://webpack.js.org/guides/web-workers/
       let centroids: CentroidList<RgbVector>;
       let minVariance: number | undefined;
-      for (let i = 0; i < BEST_N_KMEANS_OF; i++) {
+      for (let i = 0; i < BEST_KMEANS_OF_N; i++) {
         const newCentroids = findCentroids(averagedColors, maxColors);
         const newVariance = computeVariance(averagedColors, newCentroids);
         if (minVariance === undefined || newVariance < minVariance) {
@@ -131,41 +124,41 @@ const GenerateColors: React.FC = () => {
           )}
           <div className={CX_COLOR_SETTINGS}>
             <div className={CX_COLOR_SETTINGS_ROW}>
-              <label className={CX_COLOR_SETTINGS_INPUT_LABEL}>
-                Boxes Wide{" "}
-                <DebouncedIntegerInput
-                  className={CX_COLOR_SETTINGS_INPUT}
-                  value={boxesWide}
-                  onChange={(value) => dispatch(setBoxesWide(value))}
-                  minValue={1}
-                  maxValue={cropZone.width}
-                  waitMillis={500}
-                />
-              </label>
-              <label className={CX_COLOR_SETTINGS_INPUT_LABEL}>
-                Max Colors{" "}
-                <DebouncedIntegerInput
-                  className={CX_COLOR_SETTINGS_INPUT}
-                  value={maxColors}
-                  onChange={(value) => dispatch(setMaxColors(value))}
-                  minValue={1}
-                  maxValue={50}
-                  waitMillis={500}
-                />
-              </label>
+              <IntegerColorSetting
+                label="Boxes Wide"
+                on="left"
+                value={boxesWide}
+                onChange={(value) => dispatch(setBoxesWide(value))}
+                minValue={1}
+                maxValue={Math.min(150, cropZone.width)}
+              />
+              <IntegerColorSetting
+                label="Max Colors"
+                on="right"
+                value={maxColors}
+                onChange={(value) => dispatch(setMaxColors(value))}
+                minValue={1}
+                maxValue={50}
+              />
             </div>
             <div className={CX_COLOR_SETTINGS_ROW}>
-              <label className={CX_COLOR_SETTINGS_INPUT_LABEL}>
-                Boxes High{" "}
-                <DebouncedIntegerInput
-                  className={CX_COLOR_SETTINGS_INPUT}
-                  value={boxesHigh}
-                  onChange={(value) => dispatch(setBoxesHigh(value))}
-                  minValue={1}
-                  maxValue={cropZone.height}
-                  waitMillis={500}
-                />
-              </label>
+              <IntegerColorSetting
+                label="Boxes High"
+                on="left"
+                value={boxesHigh}
+                onChange={(value) => dispatch(setBoxesHigh(value))}
+                minValue={1}
+                maxValue={Math.min(150, cropZone.height)}
+              />
+              <RgbVectorColorSetting
+                label="Background Color"
+                on="right"
+                value={backgroundColor}
+                onChange={(value) => dispatch(setBackgroundColor(value))}
+              />
+            </div>
+            <div className={CX_COLOR_SETTINGS_ROW}>
+              <span />
               <LinkButton onClick={() => dispatch(setResolvedColors())}>Regenerate Colors</LinkButton>
             </div>
           </div>

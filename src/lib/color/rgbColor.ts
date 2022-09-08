@@ -31,7 +31,7 @@ export class RgbColor {
   }
 
   private hexify(colorAmount: number) {
-    return constrain(Math.round(colorAmount), 0, 255).toString(16);
+    return ("0" + constrain(Math.round(colorAmount), 0, 255).toString(16)).slice(-2);
   }
 
   private static HEX_CODE = /^#?([a-f0-9]{3}|[a-f0-9]{6})$/i;
