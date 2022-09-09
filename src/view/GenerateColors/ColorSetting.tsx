@@ -57,7 +57,7 @@ export function ColorSetting<TValue>({
   display,
   parse,
   areValuesEqual = (value1, value2) => value1 === value2,
-  waitMillis = 500,
+  waitMillis = 300,
   className,
 }: ColorSettingProps<TValue>) {
   const [inputValue, setInputValue] = useState(display(value));

@@ -32,23 +32,10 @@ const areCropZonesEqual = (zone1: CropZone | undefined, zone2: CropZone | undefi
     ? zone1.x === zone2.x && zone1.y === zone2.y && zone1.width === zone2.width && zone1.height === zone2.height
     : zone1 === zone2;
 
-export interface ResolvedColors {
-  /**
-   * The distinct colors for this color by number.
-   */
-  colors: readonly RgbVector[];
-  /**
-   * Array with one element for each box in the resulting color by number; that element is an index in the
-   * `resolvedColors` array. Order is row by row; i.e. (row 0, column 0), then (row 0, column 1), etc.
-   */
-  assignments: readonly number[];
-}
-
-const areResolvedColorsEqual = (colors1: ResolvedColors | undefined, colors2: ResolvedColors | undefined) =>
-  colors1 && colors2
-    ? arrayEq(colors1.colors, colors2.colors, (v1, v2) => arrayEq(v1, v2)) &&
-      arrayEq(colors1.assignments, colors2.assignments)
-    : colors1 === colors2;
+const areRgbVectorArraysEqual = (
+  colors1: readonly RgbVector[] | undefined,
+  colors2: readonly RgbVector[] | undefined,
+) => (colors1 && colors2 ? arrayEq(colors1, colors2, (v1, v2) => arrayEq(v1, v2)) : colors1 === colors2);
 
 const arrayEq = <T>(
   array1: readonly T[],
@@ -59,13 +46,6 @@ const arrayEq = <T>(
 export interface SelectImageState {
   dataUrl?: string;
   cropZone?: CropZone;
-}
-
-export interface GenerateColorsState {
-  boxesWide: number;
-  boxesHigh: number;
-  maxColors: number;
-  resolvedColors?: ResolvedColors;
 }
 
 export interface ColorByNumberMakerState {
@@ -80,7 +60,20 @@ export interface ColorByNumberMakerState {
   boxesHigh: number;
   maxColors: number;
   backgroundColor: RgbVector;
-  resolvedColors?: ResolvedColors;
+  /**
+   * The raw averaged color of each box in the color by number before colors have been resolved to conform to
+   * `maxColors`. This is a pure function of `dataUrl`, `cropZone`, `boxesWide`, `boxesHigh`, and `backgroundColor`. We
+   * store it as its own piece of state in Redux purely as a performance optimization: Depending on `cropZone.width` and
+   * `cropZone.height`, this value can take several seconds to compute, so we cache it in Redux to speed up downstream
+   * computations.
+   */
+  averagedColors?: readonly RgbVector[];
+  /**
+   * The distinct colors for this color by number after colors have been resolved to conform to `maxColors`. This value
+   * is **not** a pure function of other pieces of state b/c the KMeans++ algorithm is non-deterministic. This value
+   * memorializes the user's preferred color resolutions.
+   */
+  resolvedColors?: readonly RgbVector[];
 
   // TODO: PrepareForPrint...
 }
@@ -98,11 +91,13 @@ type InvalidatedKey = Exclude<keyof ColorByNumberMakerState, "phase">;
 // Object mapping from state keys to the other state keys that are invalidated by the given state key.
 const INVALIDATED_BY: { [Key in InvalidatedKey]: InvalidatedKey[] } = {
   dataUrl: ["cropZone"],
-  cropZone: ["resolvedColors"],
-  boxesWide: ["resolvedColors"],
-  boxesHigh: ["resolvedColors"],
+  cropZone: ["averagedColors"],
+  boxesWide: ["averagedColors"],
+  boxesHigh: ["averagedColors"],
+  // NOT averagedColors for maxColors. That only affects color resolution, not color averaging.
   maxColors: ["resolvedColors"],
-  backgroundColor: ["resolvedColors"],
+  backgroundColor: ["averagedColors"],
+  averagedColors: ["resolvedColors"],
   resolvedColors: [],
 };
 
@@ -146,9 +141,13 @@ const slice = createSlice({
       if (!arrayEq(state.backgroundColor, action.payload)) invalidate(state, "backgroundColor");
       state.backgroundColor = action.payload;
     },
-    setResolvedColors(state, action: PayloadAction<ResolvedColors | undefined>) {
-      if (!areResolvedColorsEqual(state.resolvedColors, action.payload)) invalidate(state, "resolvedColors");
-      state.resolvedColors = action.payload as Draft<ResolvedColors> | undefined;
+    setAveragedColors(state, action: PayloadAction<readonly RgbVector[]>) {
+      if (!areRgbVectorArraysEqual(state.averagedColors, action.payload)) invalidate(state, "averagedColors");
+      state.averagedColors = action.payload as Draft<readonly RgbVector[]>;
+    },
+    setResolvedColors(state, action: PayloadAction<readonly RgbVector[] | undefined>) {
+      if (!areRgbVectorArraysEqual(state.resolvedColors, action.payload)) invalidate(state, "resolvedColors");
+      state.resolvedColors = action.payload as Draft<readonly RgbVector[]> | undefined;
     },
   },
 });

@@ -130,6 +130,9 @@ export class CentroidList<T extends Vector> {
     return this.centroids.length;
   }
 
+  /**
+   * Returns the 0-based index within the `centroids` array of the centroid that is nearest to the given coordinates.
+   */
   classify(coords: ComputedVector<T>) {
     return this.centroids
       .map((centroid) => euclideanDistanceSquared(coords, centroid))
@@ -140,6 +143,9 @@ export class CentroidList<T extends Vector> {
       );
   }
 
+  /**
+   * Returns the squared distance from the given coordinates to the nearest centroid.
+   */
   distanceTo(coords: ComputedVector<T>) {
     return this.centroids
       .map((centroid) => euclideanDistanceSquared(coords, centroid))
@@ -267,11 +273,7 @@ export function computeVariance<TPoint, TCoords extends Vector>(
     options,
   );
   const squareDistances = dataPoints.map((point, idx) => [centroids.distanceTo(coordsFn(point, idx))] as const);
-  return computeMean(
-    dataPoints,
-    (_, idx) => squareDistances[idx],
-    { weightFn },
-  )[0];
+  return computeMean(dataPoints, (_, idx) => squareDistances[idx], { weightFn })[0];
 }
 
 function unsafeParseCoordsFnAndOptions<TPoint, TCoords, TOptions extends KMeansWeightingOptions<TPoint>>(

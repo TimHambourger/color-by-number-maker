@@ -1,17 +1,17 @@
 import { useAppDispatch, useImageData } from "app/hooks";
 import { rule } from "app/nano";
 import { useColorByNumberMakerState } from "app/slice";
-import { averageColors } from "lib/averageColors";
-import { RgbColor, RgbVector } from "lib/color";
-import { constrain } from "lib/constrain";
-import { CentroidList, computeVariance, findCentroids } from "lib/kMeansPlusPlus";
-import { useEffect, useMemo } from "react";
+import cx from "classnames";
+import { CentroidList } from "lib/kMeansPlusPlus";
+import { useEffect, useMemo, useRef } from "react";
+import ColorByNumberPreview, { ColorByNumberPreviewProps } from "view/ColorByNumberPreview";
 import LinkButton from "view/LinkButton";
 import WizardNavigationControls from "view/WizardNavigationControls";
+import { averageColorsInBackground, resolveColorsInBackground } from "workers";
+import { ResolveColorsResponse } from "workers/resolveColors/api";
 import { IntegerColorSetting, RgbVectorColorSetting } from "./ColorSetting";
 
-// As a fraction of the width of a single box.
-const LINE_WIDTH = 0.1;
+const PREVIEW_WIDTH_PX = 400;
 
 const BEST_KMEANS_OF_N = 6;
 
@@ -21,12 +21,31 @@ const CX_GENERATE_COLORS = rule({
 });
 
 const CX_PREVIEW_SHELL = rule({
-  textAlign: "center",
+  margin: "0 auto",
+  position: "relative",
 });
 
+const CX_PREVIEW = rule({
+  display: "block",
+  height: "100%",
+  width: "100%",
+});
+
+const CX_LOADING_TEXT_OVERLAY = "loading-text-overlay";
+
 const CX_LOADING_TEXT = rule({
-  height: "200px",
-  textAlign: "center",
+  alignItems: "center",
+  display: "flex",
+  height: "100%",
+  justifyContent: "center",
+  left: 0,
+  margin: "0 auto",
+  position: "absolute",
+  top: 0,
+  width: "100%",
+  [`&.${CX_LOADING_TEXT_OVERLAY}`]: {
+    background: "rgba(255, 255, 255, 0.7)",
+  },
 });
 
 const CX_COLOR_SETTINGS = rule({
@@ -42,86 +61,90 @@ const CX_COLOR_SETTINGS_ROW = rule({
 const GenerateColors: React.FC = () => {
   const dispatch = useAppDispatch();
   const {
-    state: { dataUrl, cropZone, boxesWide, boxesHigh, maxColors, backgroundColor, resolvedColors },
+    state: { dataUrl, cropZone, boxesWide, boxesHigh, maxColors, backgroundColor, averagedColors, resolvedColors },
     setBoxesWide,
     setBoxesHigh,
     setMaxColors,
     setBackgroundColor,
+    setAveragedColors,
     setResolvedColors,
   } = useColorByNumberMakerState();
   const imageData = useImageData(dataUrl, cropZone);
+  const resolvedCentroids = useMemo(() => resolvedColors && new CentroidList(resolvedColors), [resolvedColors]);
 
-  const averagedColors = useMemo(
-    () =>
-      imageData &&
-      averageColors(
-        imageData,
-        constrain(boxesWide, 1, imageData.width),
-        constrain(boxesHigh, 1, imageData.height),
-        RgbColor.fromVector(backgroundColor),
-      ),
-    [imageData, boxesWide, boxesHigh, backgroundColor],
-  );
+  useEffect(() => {
+    if (imageData && !averagedColors) {
+      const controller = new AbortController();
+      averageColorsInBackground(
+        {
+          imageData,
+          boxesWide,
+          boxesHigh,
+          backgroundColor,
+        },
+        controller.signal,
+      )
+        .then((resp) => dispatch(setAveragedColors(resp.averagedColors)))
+        .catch(() => {
+          /* Don't care about task cancellations. */
+        });
+      return () => controller.abort();
+    }
+  }, [imageData, averagedColors, resolvedColors, boxesWide, boxesHigh, backgroundColor, dispatch, setAveragedColors]);
+
   useEffect(() => {
     if (averagedColors && !resolvedColors) {
-      // TODO: Compute in parallel with workers. See https://webpack.js.org/guides/web-workers/
-      let centroids: CentroidList<RgbVector>;
-      let minVariance: number | undefined;
+      const controller = new AbortController();
+      const promises: Promise<ResolveColorsResponse>[] = [];
       for (let i = 0; i < BEST_KMEANS_OF_N; i++) {
-        const newCentroids = findCentroids(averagedColors, maxColors);
-        const newVariance = computeVariance(averagedColors, newCentroids);
-        if (minVariance === undefined || newVariance < minVariance) {
-          centroids = newCentroids;
-          minVariance = newVariance;
-        }
+        promises.push(
+          resolveColorsInBackground(
+            {
+              averagedColors,
+              maxColors,
+            },
+            controller.signal,
+          ),
+        );
       }
-      dispatch(
-        setResolvedColors({
-          colors: centroids!.centroids,
-          assignments: averagedColors.map((color) => centroids!.classify(color)),
-        }),
-      );
+      Promise.all(promises)
+        .then((responses) => {
+          const bestResponse = responses.reduce((bestSoFar, next) =>
+            next.variance < bestSoFar.variance ? next : bestSoFar,
+          );
+          dispatch(setResolvedColors(bestResponse.colors));
+        })
+        .catch(() => {
+          /* Don't care about task cancellations */
+        });
+      return () => controller.abort();
     }
   }, [averagedColors, resolvedColors, dispatch, setResolvedColors, maxColors]);
+
+  const previewPropsRef = useRef<ColorByNumberPreviewProps | undefined>(undefined);
+  if (averagedColors && resolvedCentroids) {
+    previewPropsRef.current = { boxesWide, boxesHigh, averagedColors, resolvedCentroids };
+  }
+  const previewProps = previewPropsRef.current;
 
   return (
     <div className={CX_GENERATE_COLORS}>
       {cropZone && (
         <>
-          {resolvedColors ? (
-            <div className={CX_PREVIEW_SHELL}>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox={`${-LINE_WIDTH / 2} ${-LINE_WIDTH / 2} ${boxesWide + LINE_WIDTH} ${boxesHigh + LINE_WIDTH}`}
-                preserveAspectRatio="none"
-                style={{
-                  width: 400,
-                  height: (400 / cropZone.width) * cropZone.height,
-                }}
-              >
-                <rect
-                  x={-LINE_WIDTH / 2}
-                  y={-LINE_WIDTH / 2}
-                  width={boxesWide + LINE_WIDTH}
-                  height={boxesHigh + LINE_WIDTH}
-                />
-                {resolvedColors.assignments.map((colorIndex, assignmentIndex) => (
-                  <rect
-                    key={assignmentIndex}
-                    x={assignmentIndex % boxesWide}
-                    y={Math.floor(assignmentIndex / boxesWide)}
-                    width={1}
-                    height={1}
-                    fill={RgbColor.fromVector(resolvedColors.colors[colorIndex]).toHexCode()}
-                    stroke="#000"
-                    strokeWidth={LINE_WIDTH / 2}
-                  />
-                ))}
-              </svg>
-            </div>
-          ) : (
-            <div className={CX_LOADING_TEXT}>Constructing color by number preview...</div>
-          )}
+          <div
+            className={CX_PREVIEW_SHELL}
+            style={{
+              width: PREVIEW_WIDTH_PX,
+              height: (PREVIEW_WIDTH_PX / cropZone.width) * cropZone.height,
+            }}
+          >
+            {previewProps && <ColorByNumberPreview {...previewProps} className={CX_PREVIEW} />}
+            {(!averagedColors || !resolvedCentroids) && (
+              <div className={cx(CX_LOADING_TEXT, { [CX_LOADING_TEXT_OVERLAY]: previewProps })}>
+                Constructing color by number preview...
+              </div>
+            )}
+          </div>
           <div className={CX_COLOR_SETTINGS}>
             <div className={CX_COLOR_SETTINGS_ROW}>
               <IntegerColorSetting
