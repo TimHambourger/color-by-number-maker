@@ -4,6 +4,7 @@ import { useColorByNumberMakerState } from "app/slice";
 import { useState } from "react";
 import LinkButton from "view/LinkButton";
 import WizardNavigationControls from "view/WizardNavigationControls";
+import WizardPage from "view/WizardPage";
 import CroppableImage from "./CroppableImage";
 import ImagePasteTarget from "./ImagePasteTarget";
 
@@ -111,11 +112,6 @@ const CropImage: React.FC<CropImageProps> = ({ setIsReplacingImage }) => {
   );
 };
 
-const CX_SELECT_IMAGE = rule({
-  margin: "10px auto",
-  width: "600px",
-});
-
 const SelectImage: React.FC = () => {
   const {
     state: { dataUrl },
@@ -123,13 +119,13 @@ const SelectImage: React.FC = () => {
   const [isReplacingImage, setIsReplacingImage] = useState(false);
 
   return (
-    <div className={CX_SELECT_IMAGE}>
+    <WizardPage>
       {!dataUrl || isReplacingImage ? (
         <AddOrReplaceImage setIsReplacingImage={setIsReplacingImage} />
       ) : (
         <CropImage setIsReplacingImage={setIsReplacingImage} />
       )}
-    </div>
+    </WizardPage>
   );
 };
 export default SelectImage;

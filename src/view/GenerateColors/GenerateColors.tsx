@@ -2,11 +2,11 @@ import { useAppDispatch, useImageData } from "app/hooks";
 import { rule } from "app/nano";
 import { useColorByNumberMakerState } from "app/slice";
 import cx from "classnames";
-import { CentroidList } from "lib/kMeansPlusPlus";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import ColorByNumberPreview, { ColorByNumberPreviewProps } from "view/ColorByNumberPreview";
 import LinkButton from "view/LinkButton";
 import WizardNavigationControls from "view/WizardNavigationControls";
+import WizardPage from "view/WizardPage";
 import { averageColorsInBackground, resolveColorsInBackground } from "workers";
 import { ResolveColorsResponse } from "workers/resolveColors/api";
 import { IntegerColorSetting, RgbVectorColorSetting } from "./ColorSetting";
@@ -14,11 +14,6 @@ import { IntegerColorSetting, RgbVectorColorSetting } from "./ColorSetting";
 const PREVIEW_WIDTH_PX = 400;
 
 const BEST_KMEANS_OF_N = 6;
-
-const CX_GENERATE_COLORS = rule({
-  margin: "10px auto",
-  width: "600px",
-});
 
 const CX_PREVIEW_SHELL = rule({
   margin: "0 auto",
@@ -58,6 +53,11 @@ const CX_COLOR_SETTINGS_ROW = rule({
   margin: "6px 0",
 });
 
+type RememberedPreviewProps = Pick<
+  ColorByNumberPreviewProps,
+  "boxesWide" | "boxesHigh" | "averagedColors" | "resolvedColors"
+>;
+
 const GenerateColors: React.FC = () => {
   const dispatch = useAppDispatch();
   const {
@@ -70,7 +70,6 @@ const GenerateColors: React.FC = () => {
     setResolvedColors,
   } = useColorByNumberMakerState();
   const imageData = useImageData(dataUrl, cropZone);
-  const resolvedCentroids = useMemo(() => resolvedColors && new CentroidList(resolvedColors), [resolvedColors]);
 
   useEffect(() => {
     if (imageData && !averagedColors) {
@@ -121,14 +120,23 @@ const GenerateColors: React.FC = () => {
     }
   }, [averagedColors, resolvedColors, dispatch, setResolvedColors, maxColors]);
 
-  const previewPropsRef = useRef<ColorByNumberPreviewProps | undefined>(undefined);
-  if (averagedColors && resolvedCentroids) {
-    previewPropsRef.current = { boxesWide, boxesHigh, averagedColors, resolvedCentroids };
+  // Remember props for the color by number preview as of whenever we last had averagedColors and resolvedColors
+  // available. This supports showing an "after memory" of the last color by number preview as we're still constructing
+  // the next preview, even if the reason we're re-constructing the color by number preview is b/c of a change to
+  // boxesWide or boxesHigh.
+  const previewPropsRef = useRef<RememberedPreviewProps | undefined>(undefined);
+  if (averagedColors && resolvedColors) {
+    previewPropsRef.current = {
+      boxesWide,
+      boxesHigh,
+      averagedColors,
+      resolvedColors,
+    };
   }
   const previewProps = previewPropsRef.current;
 
   return (
-    <div className={CX_GENERATE_COLORS}>
+    <WizardPage>
       {cropZone && (
         <>
           <div
@@ -138,8 +146,10 @@ const GenerateColors: React.FC = () => {
               height: (PREVIEW_WIDTH_PX / cropZone.width) * cropZone.height,
             }}
           >
-            {previewProps && <ColorByNumberPreview {...previewProps} className={CX_PREVIEW} />}
-            {(!averagedColors || !resolvedCentroids) && (
+            {previewProps && (
+              <ColorByNumberPreview {...previewProps} className={CX_PREVIEW} previewFilledBoxes={() => true} />
+            )}
+            {(!averagedColors || !resolvedColors) && (
               <div className={cx(CX_LOADING_TEXT, { [CX_LOADING_TEXT_OVERLAY]: previewProps })}>
                 Constructing color by number preview...
               </div>
@@ -187,8 +197,8 @@ const GenerateColors: React.FC = () => {
           </div>
         </>
       )}
-      <WizardNavigationControls forwardIsDisabled />
-    </div>
+      <WizardNavigationControls forwardIsDisabled={!averagedColors || !resolvedColors} />
+    </WizardPage>
   );
 };
 export default GenerateColors;

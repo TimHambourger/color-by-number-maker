@@ -8,4 +8,5 @@ export const ACCENT_DARK = "#2753ca";
 export const ACCENT_LIGHT = "#4879ff";
 export const ACCENT_LIGHTER = "#6899ff";
 
+export const BLACK = "#000";
 export const WHITE = "#fff";

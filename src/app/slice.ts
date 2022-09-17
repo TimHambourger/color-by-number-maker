@@ -1,4 +1,5 @@
 import { createSlice, Draft, PayloadAction } from "@reduxjs/toolkit";
+import { arrayEq } from "lib/arrayEq";
 import { RgbVector } from "../lib/color";
 import { useAppSelector } from "./hooks";
 import { RootState } from "./store";
@@ -32,16 +33,34 @@ const areCropZonesEqual = (zone1: CropZone | undefined, zone2: CropZone | undefi
     ? zone1.x === zone2.x && zone1.y === zone2.y && zone1.width === zone2.width && zone1.height === zone2.height
     : zone1 === zone2;
 
+export interface ColorMetadata {
+  /**
+   * A number used to determine the order in which to display this number in the color-by-number legend. Only the size
+   * of this number relative to the other `displayOrder` values for this color-by-number sheet is significant. Absolute
+   * `displayOrder` values have no significance. This value also informs the number used to represent this color on the
+   * color-by-number sheet.
+   */
+  displayOrder: number;
+  /**
+   * Whether to treat this number as blank/white. Setting this to true suppresses this color from the legend and causes
+   * boxes assigned to this color to remain blank.
+   */
+  treatAsBlank: boolean;
+  /**
+   * The label used for this color in the legend.
+   */
+  label: string;
+}
+
+const areColorMetadatasEqual = (metadata1: ColorMetadata, metadata2: ColorMetadata) =>
+  metadata1.displayOrder === metadata2.displayOrder &&
+  metadata1.treatAsBlank === metadata2.treatAsBlank &&
+  metadata1.label === metadata2.label;
+
 const areRgbVectorArraysEqual = (
   colors1: readonly RgbVector[] | undefined,
   colors2: readonly RgbVector[] | undefined,
 ) => (colors1 && colors2 ? arrayEq(colors1, colors2, (v1, v2) => arrayEq(v1, v2)) : colors1 === colors2);
-
-const arrayEq = <T>(
-  array1: readonly T[],
-  array2: readonly T[],
-  areItemsEqual: (item1: T, item2: T) => boolean = (item1, item2) => item1 === item2,
-) => array1.length === array2.length && array1.every((item, idx) => areItemsEqual(item, array2[idx]));
 
 export interface SelectImageState {
   dataUrl?: string;
@@ -75,7 +94,14 @@ export interface ColorByNumberMakerState {
    */
   resolvedColors?: readonly RgbVector[];
 
-  // TODO: PrepareForPrint...
+  // PrepareForPrint...
+  title: string;
+  /**
+   * Metadata about each resolved color. Parallels the colors in `resolvedColors`, i.e. the metadata at array index 0 in
+   * `colorMetadatas` describes the color at array index 0 in `resolvedColors`, the metadata at array index 1 in
+   * `colorMetadatas` describes the color at array index 1 in `resolvedColors`, etc.
+   */
+  colorMetadatas?: readonly ColorMetadata[];
 }
 
 const initialState: ColorByNumberMakerState = {
@@ -84,13 +110,14 @@ const initialState: ColorByNumberMakerState = {
   boxesHigh: 40,
   maxColors: 8,
   backgroundColor: [255, 255, 255],
+  title: "",
 };
 
 type InvalidatedKey = Exclude<keyof ColorByNumberMakerState, "phase">;
 
 // Object mapping from state keys to the other state keys that are invalidated by the given state key.
 const INVALIDATED_BY: { [Key in InvalidatedKey]: InvalidatedKey[] } = {
-  dataUrl: ["cropZone"],
+  dataUrl: ["cropZone", "title"],
   cropZone: ["averagedColors"],
   boxesWide: ["averagedColors"],
   boxesHigh: ["averagedColors"],
@@ -98,7 +125,9 @@ const INVALIDATED_BY: { [Key in InvalidatedKey]: InvalidatedKey[] } = {
   maxColors: ["resolvedColors"],
   backgroundColor: ["averagedColors"],
   averagedColors: ["resolvedColors"],
-  resolvedColors: [],
+  resolvedColors: ["colorMetadatas"],
+  title: [],
+  colorMetadatas: [],
 };
 
 const invalidate = (state: ColorByNumberMakerState, key: InvalidatedKey) => {
@@ -148,6 +177,16 @@ const slice = createSlice({
     setResolvedColors(state, action: PayloadAction<readonly RgbVector[] | undefined>) {
       if (!areRgbVectorArraysEqual(state.resolvedColors, action.payload)) invalidate(state, "resolvedColors");
       state.resolvedColors = action.payload as Draft<readonly RgbVector[]> | undefined;
+    },
+    setTitle(state, action: PayloadAction<string>) {
+      if (state.title !== action.payload) invalidate(state, "title");
+      state.title = action.payload;
+    },
+    setColorMetadatas(state, action: PayloadAction<readonly ColorMetadata[]>) {
+      if (state.colorMetadatas && !arrayEq(state.colorMetadatas, action.payload, areColorMetadatasEqual)) {
+        invalidate(state, "colorMetadatas");
+      }
+      state.colorMetadatas = action.payload as Draft<readonly ColorMetadata[]>;
     },
   },
 });
