@@ -50,13 +50,6 @@ const CX_COLOR_SWATCH = rule({
   width: "12px",
 });
 
-const CX_HEX_CODE_DISPLAY = rule({
-  display: "inline-block",
-  marginRight: "8px",
-  overflow: "hidden",
-  width: "60px",
-});
-
 const CX_COLOR_LABEL_INPUT = rule({
   border: "none",
   borderRadius: "3px",
@@ -163,7 +156,6 @@ const PrepareForPrint: React.FC = () => {
         {enrichedColors?.map((enriched) => (
           <div className={CX_COLOR_METADATA_ROW}>
             <span className={CX_COLOR_SWATCH} style={{ background: enriched.hexCode }} />
-            <span className={CX_HEX_CODE_DISPLAY}>{enriched.hexCode}</span>
             <input
               className={CX_COLOR_LABEL_INPUT}
               value={enriched.label}
