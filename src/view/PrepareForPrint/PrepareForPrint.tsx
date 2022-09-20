@@ -1,11 +1,12 @@
-import { GRAY_MEDIUM } from "app/colorPalette";
+import { GRAY_MEDIUM, WHITE } from "app/colorPalette";
 import { useAppDispatch } from "app/hooks";
 import { rule } from "app/nano";
 import { ColorMetadata, useColorByNumberMakerState } from "app/slice";
 import { arrayEq } from "lib/arrayEq";
 import { RgbColor } from "lib/color";
+import { sortColorsIntuitively } from "lib/colorSorting";
 import { useEffect, useMemo } from "react";
-import ColorByNumberPreview, { useNumberedBoxContent } from "view/ColorByNumberPreview";
+import ColorByNumberImage, { ImageBoxBackground, ImageBoxText } from "view/ColorByNumberImage";
 import WizardNavigationControls from "view/WizardNavigationControls";
 import WizardPage, { WIZARD_PAGE_WIDTH_PX } from "view/WizardPage";
 
@@ -78,16 +79,14 @@ const PrepareForPrint: React.FC = () => {
     setTitle,
     setColorMetadatas,
   } = useColorByNumberMakerState();
-  const previewBoxContent = useNumberedBoxContent();
 
   useEffect(() => {
     if (resolvedColors && !colorMetadatas) {
       dispatch(
         setColorMetadatas(
-          resolvedColors.map((color, idx) => {
+          resolvedColors.map((color): ColorMetadata => {
             const hexCode = RgbColor.fromVector(color).toHexCode();
             return {
-              displayOrder: idx,
               treatAsBlank: arrayEq(RgbColor.fromHexCode(hexCode)!.toVector(), [255, 255, 255]),
               label: hexCode,
             };
@@ -97,19 +96,29 @@ const PrepareForPrint: React.FC = () => {
     }
   }, [resolvedColors, colorMetadatas, dispatch, setColorMetadatas]);
 
-  // TODO: Support reordering colors...
-  const enrichedColors = useMemo(
-    () =>
-      resolvedColors &&
-      colorMetadatas &&
-      resolvedColors
+  const displayOrders = useMemo(() => resolvedColors && sortColorsIntuitively(resolvedColors), [resolvedColors]);
+
+  const [enrichedColors, displayedNumbers] = useMemo(() => {
+    if (resolvedColors && displayOrders && colorMetadatas) {
+      const _enrichedColors = resolvedColors
         .map((color, index) => ({
           ...colorMetadatas[index],
           hexCode: RgbColor.fromVector(color).toHexCode(),
+          originalIndex: index,
+          displayOrder: displayOrders[index],
         }))
-        .sort((enriched1, enriched2) => enriched1.displayOrder - enriched2.displayOrder),
-    [resolvedColors, colorMetadatas],
-  );
+        .sort((enriched1, enriched2) => enriched1.displayOrder - enriched2.displayOrder);
+
+      let nextDisplayedNumber = 1;
+      const _displayedNumbers = new Array<number | undefined>(resolvedColors.length);
+      for (const { originalIndex, treatAsBlank } of _enrichedColors) {
+        _displayedNumbers[originalIndex] = treatAsBlank ? undefined : nextDisplayedNumber++;
+      }
+      return [_enrichedColors, _displayedNumbers] as const;
+    } else {
+      return [undefined, undefined] as const;
+    }
+  }, [resolvedColors, displayOrders, colorMetadatas]);
 
   const updateMetadata = (metadataIndex: number, metadataUpdater: (metadata: ColorMetadata) => ColorMetadata) => {
     const newColorMetadatas = colorMetadatas?.map((metadata, index) =>
@@ -133,34 +142,38 @@ const PrepareForPrint: React.FC = () => {
       </div>
       <div>
         {cropZone && averagedColors && resolvedColors && (
-          <ColorByNumberPreview
+          <ColorByNumberImage
             className={CX_PREVIEW}
             style={{ width: PREVIEW_WIDTH_PX, height: (PREVIEW_WIDTH_PX * cropZone.height) / cropZone.width }}
             boxesWide={boxesWide}
             boxesHigh={boxesHigh}
             averagedColors={averagedColors}
             resolvedColors={resolvedColors}
-            // TODO: Highlight selected color on preview...
-            previewFilledBoxes={() => false}
-            boxContent={previewBoxContent}
+            renderBoxContent={(resolvedColorIndex) => (
+              <>
+                {/* TODO: Highlight selected color on preview... */}
+                <ImageBoxBackground fill={WHITE} />
+                <ImageBoxText>{displayedNumbers?.[resolvedColorIndex]}</ImageBoxText>
+              </>
+            )}
           />
         )}
       </div>
       <div>
-        {enrichedColors?.map((enriched, index) => (
+        {enrichedColors?.map((enriched) => (
           <div className={CX_COLOR_METADATA_ROW}>
             <span className={CX_COLOR_SWATCH} style={{ background: enriched.hexCode }} />
             <span className={CX_HEX_CODE_DISPLAY}>{enriched.hexCode}</span>
             <input
               className={CX_COLOR_LABEL_INPUT}
               value={enriched.label}
-              onChange={(e) => updateMetadata(index, (it) => ({ ...it, label: e.target.value }))}
+              onChange={(e) => updateMetadata(enriched.originalIndex, (it) => ({ ...it, label: e.target.value }))}
             />
             <label className={CX_TREAT_AS_BLANK_LABEL}>
               <input
                 type="checkbox"
                 checked={enriched.treatAsBlank}
-                onChange={(e) => updateMetadata(index, (it) => ({ ...it, treatAsBlank: e.target.checked }))}
+                onChange={(e) => updateMetadata(enriched.originalIndex, (it) => ({ ...it, treatAsBlank: e.target.checked }))}
               />
               <span>Treat as Blank</span>
             </label>

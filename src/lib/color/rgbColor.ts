@@ -1,22 +1,26 @@
-import { constrain } from "lib/constrain";
+import { assertNearlyInRange, constrain } from "lib/constrain";
 
 export type RgbVector = [red: number, green: number, blue: number];
 
 export class RgbColor {
-  constructor(
-    /**
-     * In the range 0 - 255 inclusive.
-     */
-    readonly red: number,
-    /**
-     * In the range 0 - 255 inclusive.
-     */
-    readonly green: number,
-    /**
-     * In the range 0 - 255 inclusive.
-     */
-    readonly blue: number,
-  ) {}
+  /**
+   * In the range 0 - 255 inclusive.
+   */
+  readonly red: number;
+  /**
+   * In the range 0 - 255 inclusive.
+   */
+  readonly green: number;
+  /**
+   * In the range 0 - 255 inclusive.
+   */
+  readonly blue: number;
+
+  constructor(red: number, green: number, blue: number) {
+    this.red = assertNearlyInRange(red, 0, 255);
+    this.green = assertNearlyInRange(green, 0, 255);
+    this.blue = assertNearlyInRange(blue, 0, 255);
+  }
 
   toVector(): RgbVector {
     return [this.red, this.green, this.blue];
@@ -31,7 +35,7 @@ export class RgbColor {
   }
 
   private hexify(colorAmount: number) {
-    return ("0" + constrain(Math.round(colorAmount), 0, 255).toString(16)).slice(-2);
+    return ("0" + Math.round(colorAmount).toString(16)).slice(-2);
   }
 
   private static HEX_CODE = /^#?([a-f0-9]{3}|[a-f0-9]{6})$/i;

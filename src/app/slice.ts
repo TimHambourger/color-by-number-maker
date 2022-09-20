@@ -35,13 +35,6 @@ const areCropZonesEqual = (zone1: CropZone | undefined, zone2: CropZone | undefi
 
 export interface ColorMetadata {
   /**
-   * A number used to determine the order in which to display this number in the color-by-number legend. Only the size
-   * of this number relative to the other `displayOrder` values for this color-by-number sheet is significant. Absolute
-   * `displayOrder` values have no significance. This value also informs the number used to represent this color on the
-   * color-by-number sheet.
-   */
-  displayOrder: number;
-  /**
    * Whether to treat this number as blank/white. Setting this to true suppresses this color from the legend and causes
    * boxes assigned to this color to remain blank.
    */
@@ -53,7 +46,6 @@ export interface ColorMetadata {
 }
 
 const areColorMetadatasEqual = (metadata1: ColorMetadata, metadata2: ColorMetadata) =>
-  metadata1.displayOrder === metadata2.displayOrder &&
   metadata1.treatAsBlank === metadata2.treatAsBlank &&
   metadata1.label === metadata2.label;
 
