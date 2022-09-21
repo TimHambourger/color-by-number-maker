@@ -1,11 +1,12 @@
-import { GRAY_MEDIUM, WHITE } from "app/colorPalette";
+import { ACCENT_DARK, ACCENT_PALE_TRANSPARENT, GRAY_MEDIUM, WHITE } from "app/colorPalette";
 import { useAppDispatch } from "app/hooks";
 import { rule } from "app/nano";
 import { ColorMetadata, useColorByNumberMakerState } from "app/slice";
+import cx from "classnames";
 import { arrayEq } from "lib/arrayEq";
 import { RgbColor } from "lib/color";
 import { sortColorsIntuitively } from "lib/colorSorting";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ColorByNumberImage, { ImageBoxBackground, ImageBoxText } from "view/ColorByNumberImage";
 import WizardNavigationControls from "view/WizardNavigationControls";
 import WizardPage, { WIZARD_PAGE_WIDTH_PX } from "view/WizardPage";
@@ -34,11 +35,20 @@ const CX_PREVIEW = rule({
   margin: "0 auto",
 });
 
+const CX_COLOR_METADATA_ROW_IS_SELECTED = "is-selected";
+
 const CX_COLOR_METADATA_ROW = rule({
+  border: "1px solid transparent",
+  borderRadius: "3px",
   fontSize: "13px",
-  margin: "6px 0",
+  margin: "2px 0",
+  padding: "3px 10px",
   "& > *": {
     verticalAlign: "middle",
+  },
+  [`&.${CX_COLOR_METADATA_ROW_IS_SELECTED}`]: {
+    background: ACCENT_PALE_TRANSPARENT,
+    borderColor: ACCENT_DARK,
   },
 });
 
@@ -72,6 +82,32 @@ const PrepareForPrint: React.FC = () => {
     setTitle,
     setColorMetadatas,
   } = useColorByNumberMakerState();
+
+  const [selectedColorIndex, setSelectedColorIndex] = useState<number>();
+  const colorIndicesByElement = useMemo(() => new WeakMap<HTMLElement, number>(), []);
+
+  useEffect(() => {
+    const handleColorSelectionEvent = (e: Event) => {
+      let element = e.target instanceof HTMLElement ? e.target : null;
+      while (element) {
+        const colorIndex = colorIndicesByElement.get(element);
+        if (colorIndex !== undefined) {
+          // Our event originated from inside an element that has a known color index associated with it.
+          setSelectedColorIndex(colorIndex);
+          return;
+        }
+        element = element.parentElement;
+      }
+      // Our event originated from outside any element that has a known color index associated with it.
+      setSelectedColorIndex(undefined);
+    };
+    document.addEventListener("click", handleColorSelectionEvent);
+    document.addEventListener("focusin", handleColorSelectionEvent);
+    return () => {
+      document.removeEventListener("click", handleColorSelectionEvent);
+      document.removeEventListener("focusin", handleColorSelectionEvent);
+    };
+  }, [colorIndicesByElement]);
 
   useEffect(() => {
     if (resolvedColors && !colorMetadatas) {
@@ -128,7 +164,7 @@ const PrepareForPrint: React.FC = () => {
   return (
     <WizardPage>
       <div className={CX_INSTRUCTIONS}>
-        Enter a title for your color-by-number sheet and label and/or rearrange your colors.
+        Enter a title for your color-by-number sheet and label your colors.
       </div>
       <div className={CX_TITLE_INPUT_CONTAINER}>
         <input
@@ -149,8 +185,13 @@ const PrepareForPrint: React.FC = () => {
             resolvedColors={resolvedColors}
             renderBoxContent={(resolvedColorIndex) => (
               <>
-                {/* TODO: Highlight selected color on preview... */}
-                <ImageBoxBackground fill={WHITE} />
+                <ImageBoxBackground
+                  fill={
+                    resolvedColorIndex === selectedColorIndex
+                      ? RgbColor.fromVector(resolvedColors[resolvedColorIndex]).toHexCode()
+                      : WHITE
+                  }
+                />
                 <ImageBoxText>{displayedNumbers?.[resolvedColorIndex]}</ImageBoxText>
               </>
             )}
@@ -159,12 +200,19 @@ const PrepareForPrint: React.FC = () => {
       </div>
       <div>
         {enrichedColors?.map((enriched) => (
-          <div key={enriched.originalIndex} className={CX_COLOR_METADATA_ROW}>
+          <div
+            key={enriched.originalIndex}
+            className={cx(CX_COLOR_METADATA_ROW, {
+              [CX_COLOR_METADATA_ROW_IS_SELECTED]: enriched.originalIndex === selectedColorIndex,
+            })}
+            ref={(el) => el && colorIndicesByElement.set(el, enriched.originalIndex)}
+          >
             <span className={CX_COLOR_SWATCH} style={{ background: enriched.hexCode }} />
             <input
               className={CX_COLOR_LABEL_INPUT}
               value={enriched.label}
               onChange={(e) => updateMetadata(enriched.originalIndex, (it) => ({ ...it, label: e.target.value }))}
+              onFocus={(e) => e.target.select()}
             />
             <label className={CX_TREAT_AS_BLANK_LABEL}>
               <input
