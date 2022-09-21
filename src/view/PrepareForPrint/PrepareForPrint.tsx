@@ -89,29 +89,34 @@ const PrepareForPrint: React.FC = () => {
     }
   }, [resolvedColors, colorMetadatas, dispatch, setColorMetadatas]);
 
-  const displayOrders = useMemo(() => resolvedColors && sortColorsIntuitively(resolvedColors), [resolvedColors]);
+  const colorIndicesInPreferredOrder = useMemo(
+    () => resolvedColors && sortColorsIntuitively(resolvedColors),
+    [resolvedColors],
+  );
 
-  const [enrichedColors, displayedNumbers] = useMemo(() => {
-    if (resolvedColors && displayOrders && colorMetadatas) {
-      const _enrichedColors = resolvedColors
-        .map((color, index) => ({
-          ...colorMetadatas[index],
-          hexCode: RgbColor.fromVector(color).toHexCode(),
-          originalIndex: index,
-          displayOrder: displayOrders[index],
-        }))
-        .sort((enriched1, enriched2) => enriched1.displayOrder - enriched2.displayOrder);
+  const enrichedColors = useMemo(
+    () =>
+      colorIndicesInPreferredOrder &&
+      resolvedColors &&
+      colorMetadatas &&
+      colorIndicesInPreferredOrder.map((index) => ({
+        ...colorMetadatas[index],
+        hexCode: RgbColor.fromVector(resolvedColors[index]).toHexCode(),
+        originalIndex: index,
+      })),
+    [colorIndicesInPreferredOrder, resolvedColors, colorMetadatas],
+  );
 
+  const displayedNumbers = useMemo(() => {
+    if (enrichedColors) {
       let nextDisplayedNumber = 1;
-      const _displayedNumbers = new Array<number | undefined>(resolvedColors.length);
-      for (const { originalIndex, treatAsBlank } of _enrichedColors) {
+      const _displayedNumbers = new Array<number | undefined>(enrichedColors.length);
+      for (const { originalIndex, treatAsBlank } of enrichedColors) {
         _displayedNumbers[originalIndex] = treatAsBlank ? undefined : nextDisplayedNumber++;
       }
-      return [_enrichedColors, _displayedNumbers] as const;
-    } else {
-      return [undefined, undefined] as const;
+      return _displayedNumbers;
     }
-  }, [resolvedColors, displayOrders, colorMetadatas]);
+  }, [enrichedColors]);
 
   const updateMetadata = (metadataIndex: number, metadataUpdater: (metadata: ColorMetadata) => ColorMetadata) => {
     const newColorMetadatas = colorMetadatas?.map((metadata, index) =>
@@ -154,7 +159,7 @@ const PrepareForPrint: React.FC = () => {
       </div>
       <div>
         {enrichedColors?.map((enriched) => (
-          <div className={CX_COLOR_METADATA_ROW}>
+          <div key={enriched.originalIndex} className={CX_COLOR_METADATA_ROW}>
             <span className={CX_COLOR_SWATCH} style={{ background: enriched.hexCode }} />
             <input
               className={CX_COLOR_LABEL_INPUT}
@@ -165,7 +170,9 @@ const PrepareForPrint: React.FC = () => {
               <input
                 type="checkbox"
                 checked={enriched.treatAsBlank}
-                onChange={(e) => updateMetadata(enriched.originalIndex, (it) => ({ ...it, treatAsBlank: e.target.checked }))}
+                onChange={(e) =>
+                  updateMetadata(enriched.originalIndex, (it) => ({ ...it, treatAsBlank: e.target.checked }))
+                }
               />
               <span>Treat as Blank</span>
             </label>

@@ -41,10 +41,10 @@ export class HslColor {
     const hue =
       chroma > 0
         ? maxComponent === rgb.red
-          ? ((rgb.green - rgb.blue) / chroma) * 60
+          ? ((rgb.green - rgb.blue) / 255 / chroma) * 60
           : maxComponent === rgb.green
-          ? ((rgb.blue - rgb.red) / chroma + 2) * 60
-          : ((rgb.red - rgb.green) / chroma + 4) * 60
+          ? ((rgb.blue - rgb.red) / 255 / chroma + 2) * 60
+          : ((rgb.red - rgb.green) / 255 / chroma + 4) * 60
         : 0;
     return new HslColor(hue, saturation, lightness);
   }
