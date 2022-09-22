@@ -6,7 +6,8 @@ import cx from "classnames";
 import { arrayEq } from "lib/arrayEq";
 import { RgbColor } from "lib/color";
 import { sortColorsIntuitively } from "lib/colorSorting";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useRef } from "react";
+import { CSSProperties, useEffect, useMemo, useState } from "react";
 import ColorByNumberImage, { ImageBoxBackground, ImageBoxText } from "view/ColorByNumberImage";
 import WizardNavigationControls from "view/WizardNavigationControls";
 import WizardPage, { WIZARD_PAGE_WIDTH_PX } from "view/WizardPage";
@@ -143,6 +144,7 @@ const PrepareForPrint: React.FC = () => {
     [colorIndicesInPreferredOrder, resolvedColors, colorMetadatas],
   );
 
+  const displayedNumbersRef = useRef<(number | undefined)[] | undefined>();
   const displayedNumbers = useMemo(() => {
     if (enrichedColors) {
       let nextDisplayedNumber = 1;
@@ -150,7 +152,11 @@ const PrepareForPrint: React.FC = () => {
       for (const { originalIndex, treatAsBlank } of enrichedColors) {
         _displayedNumbers[originalIndex] = treatAsBlank ? undefined : nextDisplayedNumber++;
       }
-      return _displayedNumbers;
+      return displayedNumbersRef.current && arrayEq(_displayedNumbers, displayedNumbersRef.current)
+        ? displayedNumbersRef.current
+        : (displayedNumbersRef.current = _displayedNumbers);
+    } else {
+      displayedNumbersRef.current = undefined;
     }
   }, [enrichedColors]);
 
@@ -161,11 +167,33 @@ const PrepareForPrint: React.FC = () => {
     if (newColorMetadatas) dispatch(setColorMetadatas(newColorMetadatas));
   };
 
+  const imageStyle = useMemo(
+    (): CSSProperties => ({
+      width: PREVIEW_WIDTH_PX,
+      height: (PREVIEW_WIDTH_PX * cropZone!.height) / cropZone!.width,
+    }),
+    [cropZone],
+  );
+
+  const renderImageBoxContent = useCallback(
+    (resolvedColorIndex: number) => (
+      <>
+        <ImageBoxBackground
+          fill={
+            resolvedColorIndex === selectedColorIndex
+              ? RgbColor.fromVector(resolvedColors![resolvedColorIndex]).toHexCode()
+              : WHITE
+          }
+        />
+        <ImageBoxText>{displayedNumbers?.[resolvedColorIndex]}</ImageBoxText>
+      </>
+    ),
+    [selectedColorIndex, resolvedColors, displayedNumbers],
+  );
+
   return (
     <WizardPage>
-      <div className={CX_INSTRUCTIONS}>
-        Enter a title for your color-by-number sheet and label your colors.
-      </div>
+      <div className={CX_INSTRUCTIONS}>Enter a title for your color-by-number sheet and label your colors.</div>
       <div className={CX_TITLE_INPUT_CONTAINER}>
         <input
           className={CX_TITLE_INPUT}
@@ -178,23 +206,12 @@ const PrepareForPrint: React.FC = () => {
         {cropZone && averagedColors && resolvedColors && (
           <ColorByNumberImage
             className={CX_PREVIEW}
-            style={{ width: PREVIEW_WIDTH_PX, height: (PREVIEW_WIDTH_PX * cropZone.height) / cropZone.width }}
+            style={imageStyle}
             boxesWide={boxesWide}
             boxesHigh={boxesHigh}
             averagedColors={averagedColors}
             resolvedColors={resolvedColors}
-            renderBoxContent={(resolvedColorIndex) => (
-              <>
-                <ImageBoxBackground
-                  fill={
-                    resolvedColorIndex === selectedColorIndex
-                      ? RgbColor.fromVector(resolvedColors[resolvedColorIndex]).toHexCode()
-                      : WHITE
-                  }
-                />
-                <ImageBoxText>{displayedNumbers?.[resolvedColorIndex]}</ImageBoxText>
-              </>
-            )}
+            renderBoxContent={renderImageBoxContent}
           />
         )}
       </div>

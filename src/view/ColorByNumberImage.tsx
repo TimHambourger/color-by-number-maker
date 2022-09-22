@@ -1,6 +1,6 @@
 import { RgbVector } from "lib/color";
 import { CentroidList } from "lib/kMeansPlusPlus";
-import { CSSProperties, PropsWithChildren, ReactNode, useMemo } from "react";
+import { CSSProperties, memo, PropsWithChildren, ReactNode, useMemo } from "react";
 
 // As a fraction of the width or height (including border) of a single box.
 const LINE_THICKNESS = 0.05;
@@ -75,4 +75,4 @@ const ColorByNumberImage: React.FC<ColorByNumberImageProps> = ({
     </svg>
   );
 };
-export default ColorByNumberImage;
+export default memo(ColorByNumberImage);
