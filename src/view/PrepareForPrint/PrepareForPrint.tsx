@@ -231,6 +231,7 @@ const PrepareForPrint: React.FC = () => {
             <span className={CX_COLOR_SWATCH} style={{ background: enriched.hexCode }} />
             <input
               className={CX_COLOR_LABEL_INPUT}
+              placeholder="Label"
               value={enriched.label}
               disabled={enriched.treatAsBlank}
               onChange={(e) => updateMetadata(enriched.originalIndex, (it) => ({ ...it, label: e.target.value }))}
