@@ -72,6 +72,7 @@ const CX_COLOR_LABEL_INPUT = rule({
 const CX_TREAT_AS_BLANK_LABEL = rule({
   cursor: "pointer",
   "& > *": {
+    cursor: "pointer",
     verticalAlign: "middle",
   },
 });
@@ -114,13 +115,16 @@ const PrepareForPrint: React.FC = () => {
     if (resolvedColors && !colorMetadatas) {
       dispatch(
         setColorMetadatas(
-          resolvedColors.map((color): ColorMetadata => {
-            const hexCode = RgbColor.fromVector(color).toHexCode();
-            return {
-              treatAsBlank: arrayEq(RgbColor.fromHexCode(hexCode)!.toVector(), [255, 255, 255]),
-              label: hexCode,
-            };
-          }),
+          resolvedColors.map(
+            (color): ColorMetadata => ({
+              treatAsBlank: arrayEq(
+                // Route through toHexCode -> fromHexCode as a way of normalizing
+                RgbColor.fromHexCode(RgbColor.fromVector(color).toHexCode())!.toVector(),
+                [255, 255, 255],
+              ),
+              label: "",
+            }),
+          ),
         ),
       );
     }
@@ -228,6 +232,7 @@ const PrepareForPrint: React.FC = () => {
             <input
               className={CX_COLOR_LABEL_INPUT}
               value={enriched.label}
+              disabled={enriched.treatAsBlank}
               onChange={(e) => updateMetadata(enriched.originalIndex, (it) => ({ ...it, label: e.target.value }))}
               onFocus={(e) => e.target.select()}
             />
