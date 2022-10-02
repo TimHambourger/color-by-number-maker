@@ -7,6 +7,13 @@ export const WIZARD_PAGE_WIDTH_PX = 600;
 const CX_WIZARD_PAGE = rule({
   margin: "10px auto",
   width: `${WIZARD_PAGE_WIDTH_PX}px`,
+
+  "@media print": {
+    "&": {
+      margin: 0,
+      width: "fit-content",
+    },
+  },
 });
 
 export interface WizardPageProps {

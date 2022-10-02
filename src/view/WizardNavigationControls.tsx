@@ -9,6 +9,12 @@ const CX_NAVIGATION_CONTROLS = rule({
   display: "flex",
   justifyContent: "space-between",
   marginTop: "6px",
+
+  "@media print": {
+    "&": {
+      display: "none",
+    },
+  },
 });
 
 export interface WizardNavigationControlsProps {

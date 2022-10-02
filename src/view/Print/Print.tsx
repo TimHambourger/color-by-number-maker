@@ -75,6 +75,12 @@ const ORIENTATION_NAMES: { [O in PageOrientation]: string } = {
 const CX_ORIENTATION_SELECTOR = rule({
   marginBottom: "16px",
   textAlign: "right",
+
+  "@media print": {
+    "&": {
+      display: "none",
+    },
+  },
 });
 
 const CX_ORIENTATION_LABEL_TEXT = rule({

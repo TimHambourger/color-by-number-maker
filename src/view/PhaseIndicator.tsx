@@ -13,6 +13,12 @@ const PHASE_DISPLAY_NAME: { [Phase in ColorByNumberMakerPhase]: string } = {
 const CX_PHASE_INDICATOR = rule({
   padding: "16px 0",
   textAlign: "center",
+
+  "@media print": {
+    "&": {
+      display: "none",
+    },
+  },
 });
 
 const CX_FUTURE_PHASE = "future-phase";
