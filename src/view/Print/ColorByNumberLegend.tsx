@@ -52,11 +52,18 @@ export interface ColorByNumberLegendProps {
 const ColorByNumberLegend: React.FC<ColorByNumberLegendProps> = ({ sortedMetadatas, displayedNumbers, maxColumns }) => {
   const displayedMetadatas = useMemo(() => sortedMetadatas.filter((m) => !m.treatAsBlank), [sortedMetadatas]);
 
+  const numRows = Math.ceil(displayedMetadatas.length / maxColumns);
+  const numColumns = Math.ceil(displayedMetadatas.length / numRows);
   const rows: JSX.Element[] = [];
-  for (let rowNum = 0; rowNum < Math.ceil(displayedMetadatas.length / maxColumns); rowNum++) {
+  for (let rowNum = 0; rowNum < numRows; rowNum++) {
+    // Layout the legend column by column, e.g. 1 - 3 in one column, then 4 - 6 in the next, etc.
+    const metadatasForRow: SortedColorMetadata[] = [];
+    for (let i = 0; i < numColumns && numRows * i + rowNum < displayedMetadatas.length; i++) {
+      metadatasForRow.push(displayedMetadatas[numRows * i + rowNum])
+    }
     rows.push(
       <tr key={rowNum}>
-        {displayedMetadatas.slice(rowNum * maxColumns, (rowNum + 1) * maxColumns).map((m) => (
+        {metadatasForRow.map((m) => (
           <LegendCell
             key={m.originalIndex}
             metadata={m}
