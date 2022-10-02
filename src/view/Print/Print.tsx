@@ -54,7 +54,7 @@ const ENGINES: { [O in PageOrientation]: PrintAreaLayoutEngine } = {
     pageHeightInches: 11,
     horizontalPaddingInches: 0.5,
     verticalPaddingInches: 0.5,
-    maxImageHeightInches: 7.5,
+    maxImageHeightInches: 8,
     maxLegendColumns: 4,
   }),
   [PageOrientation.Landscape]: new PrintAreaLayoutEngine({
