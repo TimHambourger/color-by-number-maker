@@ -1,11 +1,10 @@
 import { ALERT, GRAY_MEDIUM } from "app/colorPalette";
 import { rule } from "app/nano";
 import { ClipboardEventHandler, useState } from "react";
+import { RAISED_BOX } from "view/raisedBox";
 
 const CX_PASTE_TARGET = rule({
-  border: "none",
-  borderRadius: "4px",
-  boxShadow: "2px 2px 5px rgba(0, 0, 0, 0.1)",
+  ...RAISED_BOX,
   color: GRAY_MEDIUM,
   padding: "12px 10px",
   width: "100%",

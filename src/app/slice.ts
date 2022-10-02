@@ -46,8 +46,7 @@ export interface ColorMetadata {
 }
 
 const areColorMetadatasEqual = (metadata1: ColorMetadata, metadata2: ColorMetadata) =>
-  metadata1.treatAsBlank === metadata2.treatAsBlank &&
-  metadata1.label === metadata2.label;
+  metadata1.treatAsBlank === metadata2.treatAsBlank && metadata1.label === metadata2.label;
 
 const areRgbVectorArraysEqual = (
   colors1: readonly RgbVector[] | undefined,
@@ -58,6 +57,13 @@ export interface SelectImageState {
   dataUrl?: string;
   cropZone?: CropZone;
 }
+
+export enum PageOrientation {
+  Landscape = "landscape",
+  Portrait = "portrait",
+}
+
+export const ALL_ORIENTATIONS = Object.values(PageOrientation);
 
 export interface ColorByNumberMakerState {
   phase: ColorByNumberMakerPhase;
@@ -94,6 +100,9 @@ export interface ColorByNumberMakerState {
    * `colorMetadatas` describes the color at array index 1 in `resolvedColors`, etc.
    */
   colorMetadatas?: readonly ColorMetadata[];
+
+  // Print...
+  orientation?: PageOrientation;
 }
 
 const initialState: ColorByNumberMakerState = {
@@ -110,7 +119,7 @@ type InvalidatedKey = Exclude<keyof ColorByNumberMakerState, "phase">;
 // Object mapping from state keys to the other state keys that are invalidated by the given state key.
 const INVALIDATED_BY: { [Key in InvalidatedKey]: InvalidatedKey[] } = {
   dataUrl: ["cropZone", "title"],
-  cropZone: ["averagedColors"],
+  cropZone: ["averagedColors", "orientation"],
   boxesWide: ["averagedColors"],
   boxesHigh: ["averagedColors"],
   // NOT averagedColors for maxColors. That only affects color resolution, not color averaging.
@@ -120,6 +129,7 @@ const INVALIDATED_BY: { [Key in InvalidatedKey]: InvalidatedKey[] } = {
   resolvedColors: ["colorMetadatas"],
   title: [],
   colorMetadatas: [],
+  orientation: [],
 };
 
 const invalidate = (state: ColorByNumberMakerState, key: InvalidatedKey) => {
@@ -179,6 +189,10 @@ const slice = createSlice({
         invalidate(state, "colorMetadatas");
       }
       state.colorMetadatas = action.payload as Draft<readonly ColorMetadata[]>;
+    },
+    setOrientation(state, action: PayloadAction<PageOrientation>) {
+      if (state.orientation !== action.payload) invalidate(state, "orientation");
+      state.orientation = action.payload;
     },
   },
 });

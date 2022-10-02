@@ -1,12 +1,11 @@
 import { ACCENT_DARK, ACCENT_PALE_TRANSPARENT, GRAY_MEDIUM, WHITE } from "app/colorPalette";
-import { useAppDispatch } from "app/hooks";
+import { useAppDispatch, useDisplayedColorNumbers, useSortedColorMetadatas } from "app/hooks";
 import { rule } from "app/nano";
 import { ColorMetadata, useColorByNumberMakerState } from "app/slice";
 import cx from "classnames";
 import { arrayEq } from "lib/arrayEq";
 import { RgbColor } from "lib/color";
-import { sortColorsIntuitively } from "lib/colorSorting";
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { CSSProperties, useEffect, useMemo, useState } from "react";
 import ColorByNumberImage, { ImageBoxBackground, ImageBoxText } from "view/ColorByNumberImage";
 import WizardNavigationControls from "view/WizardNavigationControls";
@@ -130,39 +129,20 @@ const PrepareForPrint: React.FC = () => {
     }
   }, [resolvedColors, colorMetadatas, dispatch, setColorMetadatas]);
 
-  const colorIndicesInPreferredOrder = useMemo(
-    () => resolvedColors && sortColorsIntuitively(resolvedColors),
-    [resolvedColors],
-  );
+  const sortedMetadatas = useSortedColorMetadatas(resolvedColors, colorMetadatas);
 
   const enrichedColors = useMemo(
     () =>
-      colorIndicesInPreferredOrder &&
       resolvedColors &&
-      colorMetadatas &&
-      colorIndicesInPreferredOrder.map((index) => ({
-        ...colorMetadatas[index],
-        hexCode: RgbColor.fromVector(resolvedColors[index]).toHexCode(),
-        originalIndex: index,
+      sortedMetadatas &&
+      sortedMetadatas.map((m) => ({
+        ...m,
+        hexCode: RgbColor.fromVector(resolvedColors[m.originalIndex]).toHexCode(),
       })),
-    [colorIndicesInPreferredOrder, resolvedColors, colorMetadatas],
+    [resolvedColors, sortedMetadatas],
   );
 
-  const displayedNumbersRef = useRef<(number | undefined)[] | undefined>();
-  const displayedNumbers = useMemo(() => {
-    if (enrichedColors) {
-      let nextDisplayedNumber = 1;
-      const _displayedNumbers = new Array<number | undefined>(enrichedColors.length);
-      for (const { originalIndex, treatAsBlank } of enrichedColors) {
-        _displayedNumbers[originalIndex] = treatAsBlank ? undefined : nextDisplayedNumber++;
-      }
-      return displayedNumbersRef.current && arrayEq(_displayedNumbers, displayedNumbersRef.current)
-        ? displayedNumbersRef.current
-        : (displayedNumbersRef.current = _displayedNumbers);
-    } else {
-      displayedNumbersRef.current = undefined;
-    }
-  }, [enrichedColors]);
+  const displayedNumbers = useDisplayedColorNumbers(sortedMetadatas);
 
   const updateMetadata = (metadataIndex: number, metadataUpdater: (metadata: ColorMetadata) => ColorMetadata) => {
     const newColorMetadatas = colorMetadatas?.map((metadata, index) =>
@@ -250,7 +230,9 @@ const PrepareForPrint: React.FC = () => {
           </div>
         ))}
       </div>
-      <WizardNavigationControls forwardIsDisabled />
+      <WizardNavigationControls
+        forwardIsDisabled={!title || !colorMetadatas || colorMetadatas.some((m) => !m.label && !m.treatAsBlank)}
+      />
     </WizardPage>
   );
 };
