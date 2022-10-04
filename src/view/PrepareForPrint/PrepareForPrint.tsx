@@ -6,7 +6,7 @@ import cx from "classnames";
 import { arrayEq } from "lib/arrayEq";
 import { RgbColor } from "lib/color";
 import { useCallback } from "react";
-import { CSSProperties, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ColorByNumberImage, { ImageBoxBackground, ImageBoxText } from "view/ColorByNumberImage";
 import WizardNavigationControls from "view/WizardNavigationControls";
 import WizardPage, { WIZARD_PAGE_WIDTH_PX } from "view/WizardPage";
@@ -31,7 +31,6 @@ const CX_TITLE_INPUT = rule({
 });
 
 const CX_PREVIEW = rule({
-  display: "block",
   margin: "0 auto",
 });
 
@@ -151,14 +150,6 @@ const PrepareForPrint: React.FC = () => {
     if (newColorMetadatas) dispatch(setColorMetadatas(newColorMetadatas));
   };
 
-  const imageStyle = useMemo(
-    (): CSSProperties => ({
-      width: PREVIEW_WIDTH_PX,
-      height: (PREVIEW_WIDTH_PX * cropZone!.height) / cropZone!.width,
-    }),
-    [cropZone],
-  );
-
   const renderImageBoxContent = useCallback(
     (resolvedColorIndex: number) => (
       <>
@@ -190,7 +181,8 @@ const PrepareForPrint: React.FC = () => {
         {cropZone && averagedColors && resolvedColors && (
           <ColorByNumberImage
             className={CX_PREVIEW}
-            style={imageStyle}
+            pixelsWide={PREVIEW_WIDTH_PX}
+            pixelsHigh={(PREVIEW_WIDTH_PX * cropZone.height) / cropZone.width}
             boxesWide={boxesWide}
             boxesHigh={boxesHigh}
             averagedColors={averagedColors}

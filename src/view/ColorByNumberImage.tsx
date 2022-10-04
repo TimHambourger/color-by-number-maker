@@ -1,42 +1,74 @@
+import { rule } from "app/nano";
+import cx from "classnames";
 import { RgbVector } from "lib/color";
 import { CentroidList } from "lib/kMeansPlusPlus";
-import { CSSProperties, memo, PropsWithChildren, ReactNode, useMemo } from "react";
+import { createContext, memo, PropsWithChildren, ReactNode, useContext, useMemo } from "react";
+
+// We use a multiplier to overcome rounding artifacts running on Firefox.
+const BOX_HEIGHT_IN_SVG_UNITS = 1000;
 
 // As a fraction of the width or height (including border) of a single box.
 const LINE_THICKNESS = 0.05;
+
+const IMAGE_SIZING_CONTEXT = createContext<{ boxWidthInSVGUnits: number } | null>(null);
+
+const useImageSizingContext = () => {
+  const ctxt = useContext(IMAGE_SIZING_CONTEXT);
+  if (ctxt === null)
+    throw new Error(
+      "Could not locate image sizing context. Did you forget to wrap your content in a <ColorByNumberImage /> element?",
+    );
+  return ctxt;
+};
 
 export interface ImageBoxBackgroundProps {
   fill: string;
 }
 
-export const ImageBoxBackground: React.FC<ImageBoxBackgroundProps> = ({ fill }) => (
-  <rect x={0} y={0} width={1} height={1} fill={fill} />
-);
+export const ImageBoxBackground: React.FC<ImageBoxBackgroundProps> = ({ fill }) => {
+  const { boxWidthInSVGUnits } = useImageSizingContext();
+  return <rect x={0} y={0} width={boxWidthInSVGUnits} height={BOX_HEIGHT_IN_SVG_UNITS} fill={fill} />;
+};
 
-export const ImageBoxText: React.FC<PropsWithChildren> = ({ children }) => (
-  <text x={0.5} y={0.55} fontSize={0.6} dominantBaseline="middle" textAnchor="middle">
-    {children}
-  </text>
-);
+export const ImageBoxText: React.FC<PropsWithChildren> = ({ children }) => {
+  const { boxWidthInSVGUnits } = useImageSizingContext();
+  return (
+    <text
+      x={boxWidthInSVGUnits / 2}
+      y={BOX_HEIGHT_IN_SVG_UNITS / 2}
+      fontSize={Math.min(0.6 * BOX_HEIGHT_IN_SVG_UNITS, 0.6 * boxWidthInSVGUnits)}
+      dominantBaseline="central"
+      textAnchor="middle"
+    >
+      {children}
+    </text>
+  );
+};
+
+const CX_IMAGE = rule({
+  display: "block",
+});
 
 export interface ColorByNumberImageProps {
+  pixelsWide: number;
+  pixelsHigh: number;
   boxesWide: number;
   boxesHigh: number;
   averagedColors: readonly RgbVector[];
   resolvedColors: readonly RgbVector[];
   renderBoxContent: (resolvedColorIndex: number) => ReactNode;
   className?: string;
-  style?: CSSProperties;
 }
 
 const ColorByNumberImage: React.FC<ColorByNumberImageProps> = ({
+  pixelsWide,
+  pixelsHigh,
   boxesWide,
   boxesHigh,
   averagedColors,
   resolvedColors,
   renderBoxContent,
   className,
-  style,
 }) => {
   const resolvedCentroids = useMemo(() => new CentroidList(resolvedColors), [resolvedColors]);
   const colorAssignments = useMemo(
@@ -44,34 +76,40 @@ const ColorByNumberImage: React.FC<ColorByNumberImageProps> = ({
     [averagedColors, resolvedCentroids],
   );
 
+  // Aspect ratio of a single box
+  const boxAspectRatio = ((pixelsWide / pixelsHigh) * boxesHigh) / boxesWide;
+  const boxWidthInSVGUnits = BOX_HEIGHT_IN_SVG_UNITS * boxAspectRatio;
+
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      style={style}
-      className={className}
-      viewBox={`${-LINE_THICKNESS / 2} ${-LINE_THICKNESS / 2} ${boxesWide + LINE_THICKNESS} ${
-        boxesHigh + LINE_THICKNESS
-      }`}
+      style={{ width: pixelsWide, height: pixelsHigh }}
+      className={cx(className, CX_IMAGE)}
+      viewBox={`${(-LINE_THICKNESS * boxWidthInSVGUnits) / 2} ${(-LINE_THICKNESS * BOX_HEIGHT_IN_SVG_UNITS) / 2} ${
+        (boxesWide + LINE_THICKNESS) * boxWidthInSVGUnits
+      } ${(boxesHigh + LINE_THICKNESS) * BOX_HEIGHT_IN_SVG_UNITS}`}
       preserveAspectRatio="none"
     >
       <rect
-        x={-LINE_THICKNESS / 2}
-        y={-LINE_THICKNESS / 2}
-        width={boxesWide + LINE_THICKNESS}
-        height={boxesHigh + LINE_THICKNESS}
+        x={(-LINE_THICKNESS * boxWidthInSVGUnits) / 2}
+        y={(-LINE_THICKNESS * BOX_HEIGHT_IN_SVG_UNITS) / 2}
+        width={(boxesWide + LINE_THICKNESS) * boxWidthInSVGUnits}
+        height={(boxesHigh + LINE_THICKNESS) * BOX_HEIGHT_IN_SVG_UNITS}
       />
-      {colorAssignments.map((resolvedColorIndex, boxIndex) => (
-        <svg
-          key={boxIndex}
-          x={(boxIndex % boxesWide) + LINE_THICKNESS / 2}
-          y={Math.floor(boxIndex / boxesWide) + LINE_THICKNESS / 2}
-          width={1 - LINE_THICKNESS}
-          height={1 - LINE_THICKNESS}
-          viewBox="0 0 1 1"
-        >
-          {renderBoxContent(resolvedColorIndex)}
-        </svg>
-      ))}
+      <IMAGE_SIZING_CONTEXT.Provider value={{ boxWidthInSVGUnits }}>
+        {colorAssignments.map((resolvedColorIndex, boxIndex) => (
+          <svg
+            key={boxIndex}
+            x={((boxIndex % boxesWide) + LINE_THICKNESS / 2) * boxWidthInSVGUnits}
+            y={(Math.floor(boxIndex / boxesWide) + LINE_THICKNESS / 2) * BOX_HEIGHT_IN_SVG_UNITS}
+            width={(1 - LINE_THICKNESS) * boxWidthInSVGUnits}
+            height={(1 - LINE_THICKNESS) * BOX_HEIGHT_IN_SVG_UNITS}
+            viewBox={`0 0 ${boxWidthInSVGUnits} ${BOX_HEIGHT_IN_SVG_UNITS}`}
+          >
+            {renderBoxContent(resolvedColorIndex)}
+          </svg>
+        ))}
+      </IMAGE_SIZING_CONTEXT.Provider>
     </svg>
   );
 };

@@ -109,7 +109,6 @@ const CX_TITLE = rule({
 });
 
 const CX_IMAGE = rule({
-  display: "block",
   margin: "16px auto",
 });
 
@@ -187,10 +186,8 @@ const Print: React.FC = () => {
           {averagedColors && resolvedColors && (
             <ColorByNumberImage
               className={CX_IMAGE}
-              style={{
-                width: `${printAreaLayout.imageWidthInches}in`,
-                height: `${printAreaLayout.imageHeightInches}in`,
-              }}
+              pixelsWide={printAreaLayout.imageWidthInches * PIXELS_PER_INCH}
+              pixelsHigh={printAreaLayout.imageHeightInches * PIXELS_PER_INCH}
               boxesWide={boxesWide}
               boxesHigh={boxesHigh}
               averagedColors={averagedColors}

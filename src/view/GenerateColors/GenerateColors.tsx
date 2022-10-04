@@ -16,12 +16,6 @@ const PREVIEW_WIDTH_PX = 400;
 
 const BEST_KMEANS_OF_N = 6;
 
-const CX_PREVIEW = rule({
-  display: "block",
-  height: "100%",
-  width: "100%",
-});
-
 type ColorByNumberPreviewProps = Pick<
   ColorByNumberImageProps,
   "boxesWide" | "boxesHigh" | "averagedColors" | "resolvedColors"
@@ -32,13 +26,17 @@ const ColorByNumberPreview: React.FC<ColorByNumberPreviewProps> = (props) => {
     () => props.resolvedColors.map((color) => RgbColor.fromVector(color).toHexCode()),
     [props.resolvedColors],
   );
-  return (
+  const {
+    state: { cropZone },
+  } = useColorByNumberMakerState();
+  return cropZone ? (
     <ColorByNumberImage
       {...props}
-      className={CX_PREVIEW}
+      pixelsWide={PREVIEW_WIDTH_PX}
+      pixelsHigh={(PREVIEW_WIDTH_PX * cropZone.height) / cropZone.width}
       renderBoxContent={(resolvedColorIndex) => <ImageBoxBackground fill={resolvedHexCodes[resolvedColorIndex]} />}
     />
-  );
+  ) : null;
 };
 
 const CX_PREVIEW_SHELL = rule({
