@@ -13,6 +13,8 @@ export const nano = create({ h: createElement });
 addonCache(nano);
 addonNesting(nano);
 addonRule(nano);
+// Sourcemaps are really useful for debugging styling, but they delay application startup by a second or two, so we
+// suppress them in production.
 if (process.env.NODE_ENV !== "production") addonSourcemaps(nano);
 
 const { put } = nano;
