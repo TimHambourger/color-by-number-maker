@@ -92,9 +92,13 @@ const CX_ORIENTATION_LABEL_TEXT = rule({
 const CUSTOM_PROPERTY_NON_PRINT_HEIGHT = "--non-print-height";
 const CUSTOM_PROPERTY_NON_PRINT_MARGIN_BOTTOM = "--non-print-margin-bottom";
 const CUSTOM_PROPERTY_NON_PRINT_SCALE_FACTOR = "--non-print-scale-factor";
+const CUSTOM_PROPERTY_PADDING_DEFAULTS = "--padding-defaults";
 
 const CX_PRINT_AREA = rule({
   background: WHITE,
+  // Use padding to simulate print margins. We avoid true print margins b/c they bring along other print behavior we
+  // don't want. See notes about our @page rule below.
+  padding: `var(${CUSTOM_PROPERTY_PADDING_DEFAULTS})`,
   "@media not print": {
     "&": {
       ...RAISED_BOX,
@@ -103,6 +107,13 @@ const CX_PRINT_AREA = rule({
       overflow: "auto",
       transform: `scale(var(${CUSTOM_PROPERTY_NON_PRINT_SCALE_FACTOR}))`,
       transformOrigin: "top left",
+    },
+  },
+  "@media print": {
+    "&": {
+      // Suppress bottom padding when actually printing. It doesn't add anything, just makes it more likely that we'll
+      // wind up with an extra blank page in the print dialog.
+      paddingBottom: 0,
     },
   },
 });
@@ -167,11 +178,17 @@ const Print: React.FC = () => {
       // null otherwise.
       document.head.appendChild(styleEl);
       styleEl.sheet!.insertRule(
-        // There's also "size: auto" to let the browser choose the page size/orientation itself, but both Chrome and FF
-        // often choose the wrong page orientation, meaning the user has to explicitly override the page orientation in
-        // the print dialog. This seems to be especially common if you start with one orientation, print, switch to the
-        // other orientation, then print again. Setting an explicit page size (and updating the @page rule when the page
-        // orientation changes) gives us full control over the initial selection in the print dialog.
+        // "margin: 0" is to avoid the browser adding things like document title, URL, and timestamp. See
+        // https://stackoverflow.com/a/2573612. To get back something resembling a page margin we use padding (see
+        // above), though this doesn't fully work if the content goes beyond a single page. Oh well. We're really only
+        // trying to support short titles and a reasonable number of colors. It's fine if going beyond that causes less
+        // than ideal page breaks.
+        // Next, as far as size, there's also "size: auto" to let the browser choose the page size/orientation itself,
+        // but both Chrome and FF often choose the wrong page orientation, meaning the user has to explicitly override
+        // the page orientation in the print dialog. This seems to be especially common if you start with one
+        // orientation, print, switch to the other orientation, then print again. Setting an explicit page size (and
+        // updating the @page rule when the page orientation changes) gives us full control over the initial selection
+        // in the print dialog.
         `@page { margin: 0; size: ${printAreaLayout.pageWidthInches}in ${printAreaLayout.pageHeightInches}in; }`,
       );
       return () => {
@@ -200,7 +217,6 @@ const Print: React.FC = () => {
         <div
           className={CX_PRINT_AREA}
           style={{
-            padding: `${printAreaLayout.verticalPaddingInches}in ${printAreaLayout.horizontalPaddingInches}in`,
             width: `${printAreaLayout.pageWidthInches}in`,
             // Only set an explicit height when NOT printing. When printing, let the height be based purely on the
             // contents. This seems to do a better job of avoiding extra blank pages in the print dialog.
@@ -209,6 +225,7 @@ const Print: React.FC = () => {
               (printAreaNonPrintScaleFactor! - 1) * printAreaLayout.pageHeightInches
             }in`,
             [CUSTOM_PROPERTY_NON_PRINT_SCALE_FACTOR as any]: printAreaNonPrintScaleFactor,
+            [CUSTOM_PROPERTY_PADDING_DEFAULTS as any]: `${printAreaLayout.verticalPaddingInches}in ${printAreaLayout.horizontalPaddingInches}in`,
           }}
         >
           <div className={CX_TITLE}>{title}</div>
