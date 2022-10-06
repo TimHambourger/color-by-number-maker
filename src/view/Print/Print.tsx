@@ -89,15 +89,18 @@ const CX_ORIENTATION_LABEL_TEXT = rule({
 
 // Using custom properties (i.e. CSS variables) to be able to set style properties at component render time that
 // nonetheless only apply when NOT printing.
-const CUSTOM_PROPERTY_NON_PRINT_SCALE_FACTOR = "--non-print-scale-factor";
+const CUSTOM_PROPERTY_NON_PRINT_HEIGHT = "--non-print-height";
 const CUSTOM_PROPERTY_NON_PRINT_MARGIN_BOTTOM = "--non-print-margin-bottom";
+const CUSTOM_PROPERTY_NON_PRINT_SCALE_FACTOR = "--non-print-scale-factor";
 
 const CX_PRINT_AREA = rule({
   background: WHITE,
   "@media not print": {
     "&": {
       ...RAISED_BOX,
+      height: `var(${CUSTOM_PROPERTY_NON_PRINT_HEIGHT})`,
       marginBottom: `var(${CUSTOM_PROPERTY_NON_PRINT_MARGIN_BOTTOM})`,
+      overflow: "auto",
       transform: `scale(var(${CUSTOM_PROPERTY_NON_PRINT_SCALE_FACTOR}))`,
       transformOrigin: "top left",
     },
@@ -153,6 +156,30 @@ const Print: React.FC = () => {
     [displayedNumbers],
   );
 
+  // Maintain the @page at-rule which informs print behavior.
+  // See https://developer.mozilla.org/en-US/docs/Web/CSS/@page and https://stackoverflow.com/a/2573612.
+  // The technique here is borrowed from nano-css, but we don't actually use nano-css b/c we need to be able to remove
+  // as well as add @page at-rules.
+  useEffect(() => {
+    if (printAreaLayout) {
+      const styleEl = document.createElement("style");
+      // Gotta append the new <style> element to the <head> element BEFORE trying to call insertRule as styleEl.sheet is
+      // null otherwise.
+      document.head.appendChild(styleEl);
+      styleEl.sheet!.insertRule(
+        // There's also "size: auto" to let the browser choose the page size/orientation itself, but both Chrome and FF
+        // often choose the wrong page orientation, meaning the user has to explicitly override the page orientation in
+        // the print dialog. This seems to be especially common if you start with one orientation, print, switch to the
+        // other orientation, then print again. Setting an explicit page size (and updating the @page rule when the page
+        // orientation changes) gives us full control over the initial selection in the print dialog.
+        `@page { margin: 0; size: ${printAreaLayout.pageWidthInches}in ${printAreaLayout.pageHeightInches}in; }`,
+      );
+      return () => {
+        document.head.removeChild(styleEl);
+      };
+    }
+  }, [printAreaLayout]);
+
   return (
     <WizardPage>
       {orientation !== undefined && (
@@ -174,12 +201,14 @@ const Print: React.FC = () => {
           className={CX_PRINT_AREA}
           style={{
             padding: `${printAreaLayout.verticalPaddingInches}in ${printAreaLayout.horizontalPaddingInches}in`,
-            height: `${printAreaLayout.pageHeightInches}in`,
             width: `${printAreaLayout.pageWidthInches}in`,
-            [CUSTOM_PROPERTY_NON_PRINT_SCALE_FACTOR as any]: printAreaNonPrintScaleFactor,
+            // Only set an explicit height when NOT printing. When printing, let the height be based purely on the
+            // contents. This seems to do a better job of avoiding extra blank pages in the print dialog.
+            [CUSTOM_PROPERTY_NON_PRINT_HEIGHT as any]: `${printAreaLayout.pageHeightInches}in`,
             [CUSTOM_PROPERTY_NON_PRINT_MARGIN_BOTTOM as any]: `${
-              (printAreaNonPrintScaleFactor! - 1) * printAreaLayout.pageHeightInches * PIXELS_PER_INCH
-            }px`,
+              (printAreaNonPrintScaleFactor! - 1) * printAreaLayout.pageHeightInches
+            }in`,
+            [CUSTOM_PROPERTY_NON_PRINT_SCALE_FACTOR as any]: printAreaNonPrintScaleFactor,
           }}
         >
           <div className={CX_TITLE}>{title}</div>

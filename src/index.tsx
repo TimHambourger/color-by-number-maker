@@ -15,12 +15,6 @@ put("*", {
   boxSizing: "border-box",
 });
 
-// Informs print behavior. See https://stackoverflow.com/a/2573612.
-put("@page", {
-  size: "auto",
-  margin: 0,
-});
-
 const container = document.getElementById("root")!;
 const root = createRoot(container);
 

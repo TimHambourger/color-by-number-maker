@@ -1,4 +1,4 @@
-import { assertNearlyInRange, constrain } from "lib/constrain";
+import { assertNearlyInRange } from "lib/constrain";
 
 export type RgbVector = [red: number, green: number, blue: number];
 
