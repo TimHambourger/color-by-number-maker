@@ -1,5 +1,5 @@
 import App from "App";
-import { GRAY_LIGHT } from "app/colorPalette";
+import { ACCENT_DARK, ACCENT_LIGHT, GRAY_LIGHT } from "app/colorPalette";
 import { put } from "app/nano";
 import { store } from "app/store";
 import React from "react";
@@ -9,6 +9,15 @@ import { Provider } from "react-redux";
 put("body", {
   background: GRAY_LIGHT,
   margin: 0,
+});
+
+put("a", {
+  color: ACCENT_DARK,
+  textDecoration: "none",
+
+  "&:hover": {
+    color: ACCENT_LIGHT,
+  },
 });
 
 put("*", {

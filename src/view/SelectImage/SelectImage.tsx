@@ -4,7 +4,7 @@ import { useColorByNumberMakerState } from "app/slice";
 import { useState } from "react";
 import LinkButton from "view/LinkButton";
 import WizardNavigationControls from "view/WizardNavigationControls";
-import WizardPage from "view/WizardPage";
+import WizardPage, { WIZARD_PAGE_WIDTH_PX } from "view/WizardPage";
 import CroppableImage from "./CroppableImage";
 import ImagePasteTarget from "./ImagePasteTarget";
 
@@ -23,6 +23,15 @@ interface HasSetIsReplacingImage {
 const CX_LANDING_PAGE_TITLE = rule({
   fontSize: "24px",
   textAlign: "center",
+});
+
+const CX_LANDING_PAGE_FOOTER = rule({
+  bottom: "16px",
+  left: "50%",
+  marginLeft: `${-WIZARD_PAGE_WIDTH_PX / 2}px`,
+  position: "fixed",
+  textAlign: "center",
+  width: `${WIZARD_PAGE_WIDTH_PX}px`,
 });
 
 interface AddOrReplaceImageProps extends HasSetIsReplacingImage {}
@@ -48,6 +57,13 @@ const AddOrReplaceImage: React.FC<AddOrReplaceImageProps> = ({ setIsReplacingIma
           <LinkButton onClick={() => setIsReplacingImage(false)}>Keep previous image</LinkButton>
         </div>
       )}
+      <div className={CX_LANDING_PAGE_FOOTER}>
+        With gratitude to{" "}
+        <a href="https://www.coloringsquared.com" target="_blank" rel="noreferrer">
+          coloringsquared.com
+        </a>{" "}
+        for the inspiration to start this project.
+      </div>
     </>
   );
 };
