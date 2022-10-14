@@ -27,6 +27,7 @@ const CX_LANDING_PAGE_TITLE = rule({
 
 const CX_LANDING_PAGE_FOOTER = rule({
   bottom: "16px",
+  fontSize: "14px",
   left: "50%",
   marginLeft: `${-WIZARD_PAGE_WIDTH_PX / 2}px`,
   position: "fixed",
