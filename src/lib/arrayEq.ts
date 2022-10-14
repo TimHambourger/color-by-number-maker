@@ -1,3 +1,9 @@
+/**
+ * Copyright 2022 Tim Hambourger
+ *
+ * This file is MIT Licensed. See /src/lib/LICENSE.
+ */
+
 export const arrayEq = <T>(
   array1: readonly T[],
   array2: readonly T[],

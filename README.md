@@ -55,5 +55,10 @@ Starts the production build. You must run `npm run build` first.
 
 Format all source files in place using [Prettier](https://prettier.io/).
 
+## License
+
+The files in the `/src/lib` directory of this repository are MIT licensed. See `/src/lib/LICENSE`. The remainder of
+the repository is licensed under GPL v3 or later. See `/COPYING`.
+
 ---
 Copyright (c) 2022 Tim Hambourger

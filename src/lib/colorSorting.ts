@@ -1,3 +1,9 @@
+/**
+ * Copyright 2022 Tim Hambourger
+ *
+ * This file is MIT Licensed. See /src/lib/LICENSE.
+ */
+
 import { HslColor } from "./color/hslColor";
 import { RgbColor, RgbVector } from "./color/rgbColor";
 import { shiftAngle } from "./shiftAngle";

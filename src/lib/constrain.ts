@@ -1,4 +1,10 @@
 /**
+ * Copyright 2022 Tim Hambourger
+ *
+ * This file is MIT Licensed. See /src/lib/LICENSE.
+ */
+
+/**
  * Constrain a number to be between two bounds.
  * @param value The number to constrain
  * @param min The minimum allowed value (inclusive)

@@ -1,3 +1,9 @@
+/**
+ * Copyright 2022 Tim Hambourger
+ *
+ * This file is MIT Licensed. See /src/lib/LICENSE.
+ */
+
 import { RgbaColor, RgbColor, RgbVector } from "./color";
 import { simultaneousMeans } from "./kMeansPlusPlus";
 

@@ -1,3 +1,9 @@
+/**
+ * Copyright 2022 Tim Hambourger
+ *
+ * This file is MIT Licensed. See /src/lib/LICENSE.
+ */
+
 import { DIM_COLOR, EXPECTED_COLOR, RECEIVED_COLOR } from "jest-matcher-utils";
 import { CentroidList, computeMean, euclideanDistanceSquared, findCentroids } from "./kMeansPlusPlus";
 

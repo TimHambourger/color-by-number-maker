@@ -1,3 +1,9 @@
+/**
+ * Copyright 2022 Tim Hambourger
+ *
+ * This file is MIT Licensed. See /src/lib/LICENSE.
+ */
+
 export type Vector = readonly number[];
 export type ComputedVector<T extends Vector> = T | { [Index in keyof T]: number };
 export type PointTransformer<TPoint, R> = (point: TPoint, idx: number) => R;

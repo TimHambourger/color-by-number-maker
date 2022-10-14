@@ -1,3 +1,9 @@
+/**
+ * Copyright 2022 Tim Hambourger
+ *
+ * This file is MIT Licensed. See /src/lib/LICENSE.
+ */
+
 import { assertNearlyInRange } from "lib/constrain";
 
 export type RgbVector = [red: number, green: number, blue: number];
