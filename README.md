@@ -51,5 +51,9 @@ build for best performance.
 
 Starts the production build. You must run `npm run build` first.
 
+#### `npm run format`
+
+Format all source files in place using [Prettier](https://prettier.io/).
+
 ---
 Copyright (c) 2022 Tim Hambourger

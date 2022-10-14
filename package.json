@@ -30,6 +30,7 @@
     "start:production": "serve -s build",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "format": "prettier --write src",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {

@@ -59,7 +59,7 @@ const ColorByNumberLegend: React.FC<ColorByNumberLegendProps> = ({ sortedMetadat
     // Layout the legend column by column, e.g. 1 - 3 in one column, then 4 - 6 in the next, etc.
     const metadatasForRow: SortedColorMetadata[] = [];
     for (let i = 0; i < numColumns && numRows * i + rowNum < displayedMetadatas.length; i++) {
-      metadatasForRow.push(displayedMetadatas[numRows * i + rowNum])
+      metadatasForRow.push(displayedMetadatas[numRows * i + rowNum]);
     }
     rows.push(
       <tr key={rowNum}>
