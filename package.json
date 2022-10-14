@@ -1,6 +1,6 @@
 {
   "name": "color-by-number-maker",
-  "version": "1.0.0-alpha.4",
+  "version": "1.0.0",
   "private": true,
   "engines": {
     "node": "16",
