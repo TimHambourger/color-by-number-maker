@@ -61,4 +61,4 @@ The files in the `/src/lib` directory of this repository are MIT licensed. See `
 the repository is licensed under GPL v3 or later. See `/COPYING`.
 
 ---
-Copyright (c) 2022 Tim Hambourger
+Copyright (c) 2022 - 2023 Tim Hambourger
