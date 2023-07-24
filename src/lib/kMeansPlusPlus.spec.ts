@@ -121,18 +121,15 @@ function matchNearestCentroids(
 }
 
 test("findCentroids finds predetermined centroids", () => {
-  const k = 10;
-  const numDataPoints = 1600;
+  const numCentroids = 10;
+  const numDataPoints = 16_000;
   // Higher == clumpier data and more predictable test behavior.
   const clumpinessFactor = 12;
   // Lower == test is more likely to fail. Tune in concert with the
   // clumpinessFactor.
-  const assertionTolerance = 0.05;
+  const assertionTolerance = 0.001;
 
-  const expectedCentroids: Point3D[] = [];
-  for (let i = 0; i < k; i++) {
-    expectedCentroids.push([Math.random(), Math.random(), Math.random()]);
-  }
+  const expectedCentroids = randomPoints(numCentroids);
 
   const minDistanceBetweenCentroids = Math.sqrt(
     Math.min(
@@ -147,9 +144,9 @@ test("findCentroids finds predetermined centroids", () => {
   );
   const maxDisplacementPerAxis = minDistanceBetweenCentroids / clumpinessFactor;
 
-  const dataPoints: (readonly [number, number, number])[] = [];
+  const dataPoints: Point3D[] = [];
   for (let i = 0; i < numDataPoints; i++) {
-    const centroid = expectedCentroids[Math.floor(Math.random() * k)];
+    const centroid = expectedCentroids[Math.floor(Math.random() * numCentroids)];
     dataPoints.push([
       centroid[0] + (Math.random() - 0.5) * maxDisplacementPerAxis,
       centroid[1] + (Math.random() - 0.5) * maxDisplacementPerAxis,
@@ -158,11 +155,13 @@ test("findCentroids finds predetermined centroids", () => {
   }
 
   const perfStart = performance.now();
-  const actualCentroids = findCentroids(dataPoints, k);
+  const actualCentroids = findCentroids(dataPoints, numCentroids);
 
   const perfEnd = performance.now();
   console.log(
-    `Found ${k} centroids for ${numDataPoints} data points in ${Math.round(perfEnd - perfStart)} milliseconds.`,
+    `Found ${numCentroids} centroids for ${numDataPoints} data points in ${Math.round(
+      perfEnd - perfStart,
+    )} milliseconds.`,
   );
 
   expect(actualCentroids).toMatchCentroids(new CentroidList(expectedCentroids), assertionTolerance);
