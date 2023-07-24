@@ -70,11 +70,6 @@ const areRgbVectorArraysEqual = (
   colors2: readonly RgbVector[] | undefined,
 ) => (colors1 && colors2 ? arrayEq(colors1, colors2, (v1, v2) => arrayEq(v1, v2)) : colors1 === colors2);
 
-export interface SelectImageState {
-  dataUrl?: string;
-  cropZone?: CropZone;
-}
-
 export enum PageOrientation {
   Landscape = "landscape",
   Portrait = "portrait",

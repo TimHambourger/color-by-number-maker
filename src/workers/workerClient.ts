@@ -15,10 +15,6 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-export interface WorkerClient {
-  terminate: () => void;
-}
-
 /**
  * A client harness for running simple Web Workers. Workers are assumed to receive a request in the form of a single
  * message and to return a single message in response.
