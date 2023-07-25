@@ -30,9 +30,17 @@ export const nano = create({ h: createElement });
 addonCache(nano);
 addonNesting(nano);
 addonRule(nano);
-// Sourcemaps are really useful for debugging styling, but they delay application startup by a second or two, so we
-// suppress them in production.
-if (process.env.NODE_ENV !== "production") addonSourcemaps(nano);
+// Sourcemaps are really useful for debugging styling, but they delay application startup by a second or two, so we make
+// them optional.
+if (process.env.NODE_ENV !== "production" && process.env.REACT_APP_OUTPUT_NANO_SOURCEMAPS !== "false") {
+  addonSourcemaps(nano);
+} else if (process.env.REACT_APP_OUTPUT_NANO_SOURCEMAPS === "true") {
+  // If it were up to me, I'd say honor explicit requests for nano-css sourcemaps, even if we're in production mode, but
+  // nano-css straight up refuses to do that.
+  console.warn(
+    'Ignoring REACT_APP_OUTPUT_NANO_SOURCEMAPS=true b/c NODE_ENV is "production". nano-css refuses to output sourcemaps in production mode.',
+  );
+}
 
 const { put } = nano;
 const rule = nano.rule!;
