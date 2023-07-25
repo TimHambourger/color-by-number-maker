@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Tim Hambourger
+ * Copyright 2023 Tim Hambourger
  *
  * This file is part of Color by Number Maker.
  *
@@ -15,18 +15,15 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-import { averageColors } from "lib/averageColors";
 import { RgbColor } from "lib/color";
-import { constrain } from "lib/constrain";
-import { AverageColorsRequest, AverageColorsResponse } from "./api";
+import { AssignColorsRequest, AssignColorsResponse } from "./api";
+import { assignColorToBox } from "lib/assignColorToBox";
 
-onmessage = ({ data: { imageData, boxesWide, boxesHigh, backgroundColor } }: MessageEvent<AverageColorsRequest>) => {
-  const response: AverageColorsResponse = {
-    averagedColors: averageColors(
-      imageData,
-      constrain(boxesWide, 1, imageData.width),
-      constrain(boxesHigh, 1, imageData.height),
-      RgbColor.fromVector(backgroundColor),
+onmessage = ({ data: { sampledColors, resolvedColors, prevalenceBias } }: MessageEvent<AssignColorsRequest>) => {
+  const resolvedColorObjects = resolvedColors.map(RgbColor.fromVector);
+  const response: AssignColorsResponse = {
+    colorAssignments: sampledColors.map((samplesForBox) =>
+      assignColorToBox(samplesForBox.map(RgbColor.fromVector), resolvedColorObjects, prevalenceBias),
     ),
   };
   postMessage(response);

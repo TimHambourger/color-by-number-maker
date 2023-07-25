@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 - 2023 Tim Hambourger
+ * Copyright 2023 Tim Hambourger
  *
  * This file is part of Color by Number Maker.
  *
@@ -15,6 +15,9 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-export * from "./assignColors/client";
-export * from "./resolveColors/client";
-export * from "./sampleColors/client";
+import { workerClient } from "../workerClient";
+import { AssignColorsRequest, AssignColorsResponse } from "./api";
+
+export const assignColorsInBackground = workerClient<AssignColorsRequest, AssignColorsResponse>(
+  () => new Worker(new URL("./worker.ts", import.meta.url)),
+);

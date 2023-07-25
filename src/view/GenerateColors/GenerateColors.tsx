@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Tim Hambourger
+ * Copyright 2022 - 2023 Tim Hambourger
  *
  * This file is part of Color by Number Maker.
  *
@@ -19,24 +19,27 @@ import { useAppDispatch, useImageData } from "app/hooks";
 import { rule } from "app/nano";
 import { useColorByNumberMakerState } from "app/slice";
 import cx from "classnames";
-import { RgbColor } from "lib/color";
-import { useEffect, useMemo, useRef } from "react";
+import { RgbColor, RgbVector } from "lib/color";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ColorByNumberImage, { ColorByNumberImageProps, ImageBoxBackground } from "view/ColorByNumberImage";
 import LinkButton from "view/LinkButton";
 import WizardNavigationControls from "view/WizardNavigationControls";
 import WizardPage from "view/WizardPage";
-import { averageColorsInBackground, resolveColorsInBackground } from "workers";
+import { sampleColorsInBackground, resolveColorsInBackground, assignColorsInBackground } from "workers";
 import { ResolveColorsResponse } from "workers/resolveColors/api";
 import { IntegerColorSetting, RgbVectorColorSetting } from "./ColorSetting";
+import {
+  BEST_KMEANS_OF_N,
+  COLOR_ASSIGNMENT_PREVALENCE_BIAS,
+  MAX_RETRIES_PER_BOX,
+  SAMPLES_PER_BOX,
+} from "app/colorGenerationParams";
 
 const PREVIEW_WIDTH_PX = 400;
 
-const BEST_KMEANS_OF_N = 6;
-
-type ColorByNumberPreviewProps = Pick<
-  ColorByNumberImageProps,
-  "boxesWide" | "boxesHigh" | "averagedColors" | "resolvedColors"
->;
+type ColorByNumberPreviewProps = Pick<ColorByNumberImageProps, "boxesWide" | "boxesHigh" | "colorAssignments"> & {
+  resolvedColors: readonly RgbVector[];
+};
 
 const ColorByNumberPreview: React.FC<ColorByNumberPreviewProps> = (props) => {
   const resolvedHexCodes = useMemo(
@@ -91,45 +94,50 @@ const CX_COLOR_SETTINGS_ROW = rule({
 const GenerateColors: React.FC = () => {
   const dispatch = useAppDispatch();
   const {
-    state: { dataUrl, cropZone, boxesWide, boxesHigh, maxColors, backgroundColor, averagedColors, resolvedColors },
+    state: { dataUrl, cropZone, boxesWide, boxesHigh, maxColors, backgroundColor, resolvedColors, colorAssignments },
     setBoxesWide,
     setBoxesHigh,
     setMaxColors,
     setBackgroundColor,
-    setAveragedColors,
     setResolvedColors,
+    setColorAssignments,
   } = useColorByNumberMakerState();
   const imageData = useImageData(dataUrl, cropZone);
+  const [sampledColors, setSampledColors] = useState<readonly (readonly RgbVector[])[]>();
 
+  // 1. Sample colors....
   useEffect(() => {
-    if (imageData && !averagedColors) {
+    if (imageData && !sampledColors && !colorAssignments) {
       const controller = new AbortController();
-      averageColorsInBackground(
+      sampleColorsInBackground(
         {
           imageData,
           boxesWide,
           boxesHigh,
+          samplesPerBox: SAMPLES_PER_BOX,
+          maxRetriesPerBox: MAX_RETRIES_PER_BOX,
           backgroundColor,
         },
         controller.signal,
       )
-        .then((resp) => dispatch(setAveragedColors(resp.averagedColors)))
+        .then((resp) => setSampledColors(resp.sampledColors))
         .catch(() => {
-          /* Don't care about task cancellations. */
+          // Don't care about task cancellations.
         });
       return () => controller.abort();
     }
-  }, [imageData, averagedColors, resolvedColors, boxesWide, boxesHigh, backgroundColor, dispatch, setAveragedColors]);
+  }, [imageData, resolvedColors, sampledColors, colorAssignments, boxesWide, boxesHigh, backgroundColor, dispatch]);
 
+  // 2. Resolve colors....
   useEffect(() => {
-    if (averagedColors && !resolvedColors) {
+    if (sampledColors && !resolvedColors) {
       const controller = new AbortController();
       const promises: Promise<ResolveColorsResponse>[] = [];
       for (let i = 0; i < BEST_KMEANS_OF_N; i++) {
         promises.push(
           resolveColorsInBackground(
             {
-              averagedColors,
+              sampledColors,
               maxColors,
             },
             controller.signal,
@@ -144,23 +152,43 @@ const GenerateColors: React.FC = () => {
           dispatch(setResolvedColors(bestResponse.colors));
         })
         .catch(() => {
-          /* Don't care about task cancellations */
+          // Don't care about task cancellations.
         });
       return () => controller.abort();
     }
-  }, [averagedColors, resolvedColors, dispatch, setResolvedColors, maxColors]);
+  }, [resolvedColors, sampledColors, dispatch, setResolvedColors, maxColors]);
+
+  // 3. Assign colors....
+  useEffect(() => {
+    if (sampledColors && resolvedColors && !colorAssignments) {
+      const controller = new AbortController();
+      assignColorsInBackground(
+        {
+          sampledColors,
+          resolvedColors,
+          prevalenceBias: COLOR_ASSIGNMENT_PREVALENCE_BIAS,
+        },
+        controller.signal,
+      )
+        .then((resp) => dispatch(setColorAssignments(resp.colorAssignments)))
+        .catch(() => {
+          // Don't care about task cancellations.
+        });
+      return () => controller.abort();
+    }
+  }, [sampledColors, resolvedColors, colorAssignments, dispatch, setColorAssignments]);
 
   // Remember props for the color by number preview as of whenever we last had averagedColors and resolvedColors
   // available. This supports showing an "after memory" of the last color by number preview as we're still constructing
   // the next preview, even if the reason we're re-constructing the color by number preview is b/c of a change to
   // boxesWide or boxesHigh.
   const previewPropsRef = useRef<ColorByNumberPreviewProps | undefined>(undefined);
-  if (averagedColors && resolvedColors) {
+  if (resolvedColors && colorAssignments) {
     previewPropsRef.current = {
       boxesWide,
       boxesHigh,
-      averagedColors,
       resolvedColors,
+      colorAssignments,
     };
   }
   const previewProps = previewPropsRef.current;
@@ -177,11 +205,11 @@ const GenerateColors: React.FC = () => {
             }}
           >
             {previewProps && <ColorByNumberPreview {...previewProps} />}
-            {(!averagedColors || !resolvedColors) && (
+            {!resolvedColors || !colorAssignments ? (
               <div className={cx(CX_LOADING_TEXT, { [CX_LOADING_TEXT_OVERLAY]: previewProps })}>
                 Constructing color by number preview...
               </div>
-            )}
+            ) : null}
           </div>
           <div className={CX_COLOR_SETTINGS}>
             <div className={CX_COLOR_SETTINGS_ROW}>
@@ -220,12 +248,19 @@ const GenerateColors: React.FC = () => {
             </div>
             <div className={CX_COLOR_SETTINGS_ROW}>
               <span />
-              <LinkButton onClick={() => dispatch(setResolvedColors())}>Regenerate Colors</LinkButton>
+              <LinkButton
+                onClick={() => {
+                  setSampledColors(undefined);
+                  dispatch(setResolvedColors());
+                }}
+              >
+                Regenerate Colors
+              </LinkButton>
             </div>
           </div>
         </>
       )}
-      <WizardNavigationControls forwardIsDisabled={!averagedColors || !resolvedColors} />
+      <WizardNavigationControls forwardIsDisabled={!resolvedColors || !colorAssignments} />
     </WizardPage>
   );
 };

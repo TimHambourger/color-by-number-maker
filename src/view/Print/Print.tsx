@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Tim Hambourger
+ * Copyright 2022 - 2023 Tim Hambourger
  *
  * This file is part of Color by Number Maker.
  *
@@ -146,7 +146,7 @@ const CX_IMAGE = rule({
 const Print: React.FC = () => {
   const dispatch = useAppDispatch();
   const {
-    state: { cropZone, boxesWide, boxesHigh, title, averagedColors, resolvedColors, colorMetadatas, orientation },
+    state: { cropZone, boxesWide, boxesHigh, resolvedColors, colorAssignments, title, colorMetadatas, orientation },
     setOrientation,
   } = useColorByNumberMakerState();
 
@@ -246,15 +246,14 @@ const Print: React.FC = () => {
           }}
         >
           <div className={CX_TITLE}>{title}</div>
-          {averagedColors && resolvedColors && (
+          {resolvedColors && colorAssignments && (
             <ColorByNumberImage
               className={CX_IMAGE}
               pixelsWide={printAreaLayout.imageWidthInches * PIXELS_PER_INCH}
               pixelsHigh={printAreaLayout.imageHeightInches * PIXELS_PER_INCH}
               boxesWide={boxesWide}
               boxesHigh={boxesHigh}
-              averagedColors={averagedColors}
-              resolvedColors={resolvedColors}
+              colorAssignments={colorAssignments}
               renderBoxContent={renderImageBoxContent}
             />
           )}

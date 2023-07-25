@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Tim Hambourger
+ * Copyright 2022 - 2023 Tim Hambourger
  *
  * This file is part of Color by Number Maker.
  *
@@ -15,15 +15,9 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-import { RgbVector } from "lib/color";
+import { workerClient } from "../workerClient";
+import { SampleColorsRequest, SampleColorsResponse } from "./api";
 
-export interface AverageColorsRequest {
-  imageData: ImageData;
-  boxesWide: number;
-  boxesHigh: number;
-  backgroundColor: RgbVector;
-}
-
-export interface AverageColorsResponse {
-  averagedColors: RgbVector[];
-}
+export const sampleColorsInBackground = workerClient<SampleColorsRequest, SampleColorsResponse>(
+  () => new Worker(new URL("./worker.ts", import.meta.url)),
+);

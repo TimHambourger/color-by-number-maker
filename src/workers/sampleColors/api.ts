@@ -15,6 +15,17 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-export * from "./assignColors/client";
-export * from "./resolveColors/client";
-export * from "./sampleColors/client";
+import { RgbVector } from "lib/color";
+
+export interface SampleColorsRequest {
+  imageData: ImageData;
+  boxesWide: number;
+  boxesHigh: number;
+  samplesPerBox: number;
+  maxRetriesPerBox: number;
+  backgroundColor: RgbVector;
+}
+
+export interface SampleColorsResponse {
+  sampledColors: readonly (readonly RgbVector[])[];
+}

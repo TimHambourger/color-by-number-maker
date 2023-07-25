@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Tim Hambourger
+ * Copyright 2023 Tim Hambourger
  *
  * This file is part of Color by Number Maker.
  *
@@ -15,9 +15,14 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-import { workerClient } from "../workerClient";
-import { AverageColorsRequest, AverageColorsResponse } from "./api";
+import { RgbVector } from "lib/color";
 
-export const averageColorsInBackground = workerClient<AverageColorsRequest, AverageColorsResponse>(
-  () => new Worker(new URL("./worker.ts", import.meta.url)),
-);
+export interface AssignColorsRequest {
+  sampledColors: readonly (readonly RgbVector[])[];
+  resolvedColors: readonly RgbVector[];
+  prevalenceBias: number;
+}
+
+export interface AssignColorsResponse {
+  colorAssignments: number[];
+}

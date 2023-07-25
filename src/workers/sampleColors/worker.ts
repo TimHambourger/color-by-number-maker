@@ -15,6 +15,23 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-export * from "./assignColors/client";
-export * from "./resolveColors/client";
-export * from "./sampleColors/client";
+import { RgbColor } from "lib/color";
+import { constrain } from "lib/constrain";
+import { sampleColors } from "lib/sampleColors";
+import { SampleColorsRequest, SampleColorsResponse } from "./api";
+
+onmessage = ({
+  data: { imageData, boxesWide, boxesHigh, samplesPerBox, maxRetriesPerBox, backgroundColor },
+}: MessageEvent<SampleColorsRequest>) => {
+  const response: SampleColorsResponse = {
+    sampledColors: sampleColors(
+      imageData,
+      constrain(boxesWide, 1, imageData.width),
+      constrain(boxesHigh, 1, imageData.height),
+      samplesPerBox,
+      maxRetriesPerBox,
+      RgbColor.fromVector(backgroundColor),
+    ).map((samplesForBox) => samplesForBox.map((sample) => sample.toVector())),
+  };
+  postMessage(response);
+};

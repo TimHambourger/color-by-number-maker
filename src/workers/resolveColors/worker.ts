@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Tim Hambourger
+ * Copyright 2022 - 2023 Tim Hambourger
  *
  * This file is part of Color by Number Maker.
  *
@@ -18,11 +18,12 @@
 import { computeVariance, findCentroids } from "lib/kMeansPlusPlus";
 import { ResolveColorsRequest, ResolveColorsResponse } from "./api";
 
-onmessage = ({ data: { averagedColors, maxColors } }: MessageEvent<ResolveColorsRequest>) => {
-  const centroids = findCentroids(averagedColors, maxColors);
+onmessage = ({ data: { sampledColors, maxColors } }: MessageEvent<ResolveColorsRequest>) => {
+  const allSamples = sampledColors.flat();
+  const centroids = findCentroids(allSamples, maxColors);
   const response: ResolveColorsResponse = {
     colors: centroids.centroids,
-    variance: computeVariance(averagedColors, centroids),
+    variance: computeVariance(allSamples, centroids),
   };
   postMessage(response);
 };

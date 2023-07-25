@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Tim Hambourger
+ * Copyright 2022 - 2023 Tim Hambourger
  *
  * This file is part of Color by Number Maker.
  *
@@ -18,7 +18,7 @@
 import { RgbVector } from "lib/color";
 
 export interface ResolveColorsRequest {
-  averagedColors: readonly RgbVector[];
+  sampledColors: readonly (readonly RgbVector[])[];
   maxColors: number;
 }
 

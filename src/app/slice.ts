@@ -90,19 +90,17 @@ export interface ColorByNumberMakerState {
   maxColors: number;
   backgroundColor: RgbVector;
   /**
-   * The raw averaged color of each box in the color by number before colors have been resolved to conform to
-   * `maxColors`. This is a pure function of `dataUrl`, `cropZone`, `boxesWide`, `boxesHigh`, and `backgroundColor`. We
-   * store it as its own piece of state in Redux purely as a performance optimization: Depending on `cropZone.width` and
-   * `cropZone.height`, this value can take several seconds to compute, so we cache it in Redux to speed up downstream
-   * computations.
-   */
-  averagedColors?: readonly RgbVector[];
-  /**
    * The distinct colors for this color by number after colors have been resolved to conform to `maxColors`. This value
-   * is **not** a pure function of other pieces of state b/c the KMeans++ algorithm is non-deterministic. This value
+   * is **not** a pure function of other pieces of state b/c the algorithm used is non-deterministic. This value
    * memorializes the user's preferred color resolutions.
    */
   resolvedColors?: readonly RgbVector[];
+  /**
+   * The index within `resolvedColors` of the assigned color for each box of the color by number. Iterates through boxes
+   * row by row. This value is not a pure function of other pieces of state b/c the algorithm used is non-deterministic.
+   * This value memorializes the user's preferred color assignments.
+   */
+  colorAssignments?: readonly number[];
 
   // PrepareForPrint...
   title: string;
@@ -131,14 +129,13 @@ type InvalidatedKey = Exclude<keyof ColorByNumberMakerState, "phase">;
 // Object mapping from state keys to the other state keys that are invalidated by the given state key.
 const INVALIDATED_BY: { [Key in InvalidatedKey]: InvalidatedKey[] } = {
   dataUrl: ["cropZone", "title"],
-  cropZone: ["averagedColors", "orientation"],
-  boxesWide: ["averagedColors"],
-  boxesHigh: ["averagedColors"],
-  // NOT averagedColors for maxColors. That only affects color resolution, not color averaging.
+  cropZone: ["resolvedColors", "orientation"],
+  boxesWide: ["resolvedColors"],
+  boxesHigh: ["resolvedColors"],
   maxColors: ["resolvedColors"],
-  backgroundColor: ["averagedColors"],
-  averagedColors: ["resolvedColors"],
-  resolvedColors: ["colorMetadatas"],
+  backgroundColor: ["resolvedColors"],
+  resolvedColors: ["colorAssignments"],
+  colorAssignments: ["colorMetadatas"],
   title: [],
   colorMetadatas: [],
   orientation: [],
@@ -182,15 +179,17 @@ const slice = createSlice({
     },
     setBackgroundColor(state, action: PayloadAction<RgbVector>) {
       if (!arrayEq(state.backgroundColor, action.payload)) invalidate(state, "backgroundColor");
-      state.backgroundColor = action.payload;
-    },
-    setAveragedColors(state, action: PayloadAction<readonly RgbVector[]>) {
-      if (!areRgbVectorArraysEqual(state.averagedColors, action.payload)) invalidate(state, "averagedColors");
-      state.averagedColors = action.payload as Draft<readonly RgbVector[]>;
+      state.backgroundColor = action.payload as Draft<RgbVector>;
     },
     setResolvedColors(state, action: PayloadAction<readonly RgbVector[] | undefined>) {
       if (!areRgbVectorArraysEqual(state.resolvedColors, action.payload)) invalidate(state, "resolvedColors");
       state.resolvedColors = action.payload as Draft<readonly RgbVector[]> | undefined;
+    },
+    setColorAssignments(state, action: PayloadAction<readonly number[]>) {
+      if (state.colorAssignments && !arrayEq(state.colorAssignments, action.payload)) {
+        invalidate(state, "colorAssignments");
+      }
+      state.colorAssignments = action.payload as Draft<readonly number[]>;
     },
     setTitle(state, action: PayloadAction<string>) {
       if (state.title !== action.payload) invalidate(state, "title");

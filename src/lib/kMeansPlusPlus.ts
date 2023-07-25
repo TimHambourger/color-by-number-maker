@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Tim Hambourger
+ * Copyright 2022 - 2023 Tim Hambourger
  *
  * This file is MIT Licensed. See /src/lib/LICENSE.
  */
@@ -245,7 +245,7 @@ function chooseInitialCentroids<TPoint, TCoords extends Vector>(
   return centroids;
 }
 
-function chooseAtRandomWithWeights<T>(items: readonly T[], weightFn: WeightFn<T>) {
+export function chooseAtRandomWithWeights<T>(items: readonly T[], weightFn: WeightFn<T>) {
   const weights = items.map((item, idx) => weightFn(item, idx));
   const totalWeight = weights.reduce((total, next) => total + next, 0);
   const testValue = Math.random() * totalWeight;

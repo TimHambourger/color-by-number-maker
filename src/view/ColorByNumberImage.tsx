@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Tim Hambourger
+ * Copyright 2022 - 2023 Tim Hambourger
  *
  * This file is part of Color by Number Maker.
  *
@@ -17,9 +17,7 @@
 
 import { rule } from "app/nano";
 import cx from "classnames";
-import { RgbVector } from "lib/color";
-import { CentroidList } from "lib/kMeansPlusPlus";
-import { createContext, memo, PropsWithChildren, ReactNode, useContext, useMemo } from "react";
+import { createContext, memo, PropsWithChildren, ReactNode, useContext } from "react";
 
 // We use a multiplier to overcome rounding artifacts running on Firefox.
 const BOX_HEIGHT_IN_SVG_UNITS = 1000;
@@ -71,8 +69,7 @@ export interface ColorByNumberImageProps {
   pixelsHigh: number;
   boxesWide: number;
   boxesHigh: number;
-  averagedColors: readonly RgbVector[];
-  resolvedColors: readonly RgbVector[];
+  colorAssignments: readonly number[];
   renderBoxContent: (resolvedColorIndex: number) => ReactNode;
   className?: string;
 }
@@ -82,17 +79,10 @@ const ColorByNumberImage: React.FC<ColorByNumberImageProps> = ({
   pixelsHigh,
   boxesWide,
   boxesHigh,
-  averagedColors,
-  resolvedColors,
+  colorAssignments,
   renderBoxContent,
   className,
 }) => {
-  const resolvedCentroids = useMemo(() => new CentroidList(resolvedColors), [resolvedColors]);
-  const colorAssignments = useMemo(
-    () => averagedColors.map((color) => resolvedCentroids.classify(color)),
-    [averagedColors, resolvedCentroids],
-  );
-
   // Aspect ratio of a single box
   const boxAspectRatio = ((pixelsWide / pixelsHigh) * boxesHigh) / boxesWide;
   const boxWidthInSVGUnits = BOX_HEIGHT_IN_SVG_UNITS * boxAspectRatio;
