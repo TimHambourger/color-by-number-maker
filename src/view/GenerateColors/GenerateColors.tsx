@@ -105,7 +105,7 @@ const GenerateColors: React.FC = () => {
   const imageData = useImageData(dataUrl, cropZone);
   const [sampledColors, setSampledColors] = useState<readonly (readonly RgbVector[])[]>();
 
-  // 1. Sample colors....
+  // 1.a. Sample colors....
   useEffect(() => {
     if (imageData && !sampledColors && !colorAssignments) {
       const controller = new AbortController();
@@ -127,6 +127,11 @@ const GenerateColors: React.FC = () => {
       return () => controller.abort();
     }
   }, [imageData, resolvedColors, sampledColors, colorAssignments, boxesWide, boxesHigh, backgroundColor, dispatch]);
+
+  // 1.b. Invalidate previously sampled colors if prior inputs change....
+  useEffect(() => {
+    setSampledColors(undefined);
+  }, [imageData, boxesWide, boxesHigh, backgroundColor]);
 
   // 2. Resolve colors....
   useEffect(() => {
