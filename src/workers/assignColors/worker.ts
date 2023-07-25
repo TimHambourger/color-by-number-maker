@@ -19,11 +19,11 @@ import { RgbColor } from "lib/color";
 import { AssignColorsRequest, AssignColorsResponse } from "./api";
 import { assignColorToBox } from "lib/assignColorToBox";
 
-onmessage = ({ data: { sampledColors, resolvedColors, prevalenceBias } }: MessageEvent<AssignColorsRequest>) => {
+onmessage = ({ data: { sampledColors, resolvedColors, exponent } }: MessageEvent<AssignColorsRequest>) => {
   const resolvedColorObjects = resolvedColors.map(RgbColor.fromVector);
   const response: AssignColorsResponse = {
     colorAssignments: sampledColors.map((samplesForBox) =>
-      assignColorToBox(samplesForBox.map(RgbColor.fromVector), resolvedColorObjects, prevalenceBias),
+      assignColorToBox(samplesForBox.map(RgbColor.fromVector), resolvedColorObjects, exponent),
     ),
   };
   postMessage(response);

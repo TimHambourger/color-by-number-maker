@@ -19,5 +19,4 @@ const requiredFloat = requiredNumber(parseFloat, "a number");
 
 export const BEST_KMEANS_OF_N = requiredInt("REACT_APP_BEST_KMEANS_OF_N");
 export const SAMPLES_PER_BOX = requiredInt("REACT_APP_SAMPLES_PER_BOX");
-export const MAX_RETRIES_PER_BOX = requiredInt("REACT_APP_MAX_RETRIES_PER_BOX");
-export const COLOR_ASSIGNMENT_PREVALENCE_BIAS = requiredFloat("REACT_APP_COLOR_ASSIGNMENT_PREVALENCE_BIAS");
+export const COLOR_ASSIGNMENT_EXPONENT = requiredFloat("REACT_APP_COLOR_ASSIGNMENT_EXPONENT");

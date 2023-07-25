@@ -22,7 +22,6 @@ export interface SampleColorsRequest {
   boxesWide: number;
   boxesHigh: number;
   samplesPerBox: number;
-  maxRetriesPerBox: number;
   backgroundColor: RgbVector;
 }
 

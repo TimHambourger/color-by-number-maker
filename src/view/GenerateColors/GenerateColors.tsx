@@ -28,12 +28,7 @@ import WizardPage from "view/WizardPage";
 import { sampleColorsInBackground, resolveColorsInBackground, assignColorsInBackground } from "workers";
 import { ResolveColorsResponse } from "workers/resolveColors/api";
 import { IntegerColorSetting, RgbVectorColorSetting } from "./ColorSetting";
-import {
-  BEST_KMEANS_OF_N,
-  COLOR_ASSIGNMENT_PREVALENCE_BIAS,
-  MAX_RETRIES_PER_BOX,
-  SAMPLES_PER_BOX,
-} from "app/colorGenerationParams";
+import { BEST_KMEANS_OF_N, COLOR_ASSIGNMENT_EXPONENT, SAMPLES_PER_BOX } from "app/colorGenerationParams";
 
 const PREVIEW_WIDTH_PX = 400;
 
@@ -115,7 +110,6 @@ const GenerateColors: React.FC = () => {
           boxesWide,
           boxesHigh,
           samplesPerBox: SAMPLES_PER_BOX,
-          maxRetriesPerBox: MAX_RETRIES_PER_BOX,
           backgroundColor,
         },
         controller.signal,
@@ -182,7 +176,7 @@ const GenerateColors: React.FC = () => {
         {
           sampledColors,
           resolvedColors,
-          prevalenceBias: COLOR_ASSIGNMENT_PREVALENCE_BIAS,
+          exponent: COLOR_ASSIGNMENT_EXPONENT,
         },
         controller.signal,
       )

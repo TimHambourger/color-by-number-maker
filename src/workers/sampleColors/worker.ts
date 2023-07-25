@@ -21,7 +21,7 @@ import { sampleColors } from "lib/sampleColors";
 import { SampleColorsRequest, SampleColorsResponse } from "./api";
 
 onmessage = ({
-  data: { imageData, boxesWide, boxesHigh, samplesPerBox, maxRetriesPerBox, backgroundColor },
+  data: { imageData, boxesWide, boxesHigh, samplesPerBox, backgroundColor },
 }: MessageEvent<SampleColorsRequest>) => {
   const response: SampleColorsResponse = {
     sampledColors: sampleColors(
@@ -29,7 +29,6 @@ onmessage = ({
       constrain(boxesWide, 1, imageData.width),
       constrain(boxesHigh, 1, imageData.height),
       samplesPerBox,
-      maxRetriesPerBox,
       RgbColor.fromVector(backgroundColor),
     ).map((samplesForBox) => samplesForBox.map((sample) => sample.toVector())),
   };

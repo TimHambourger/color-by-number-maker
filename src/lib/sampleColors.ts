@@ -13,8 +13,6 @@ import { RgbaColor, RgbColor } from "./color";
  * @param numBoxesWide The width of the desired color-by-number sheet in boxes.
  * @param numBoxesHigh The height of the desired color-by-number sheet in boxes.
  * @param samplesPerBox The number of samples to collect per box.
- * @param maxRetriesPerBox The number of retries to attempt per box in the event that the same pixel is sampled more
- * than once.
  * @param backgroundColor The background color to use for transparent pixels. (Only relevant if the given image contains
  * transparent pixels.)
  * @returns An array of arrays of `RgbColor` instances. Each inner array holds the sampled colors for a given box. The
@@ -25,9 +23,6 @@ export function sampleColors(
   numBoxesWide: number,
   numBoxesHigh: number,
   samplesPerBox: number,
-  // TODO: Maybe don't bother with maxRetriesPerBox? The whole thing with avoiding sampling the same pixel seems
-  // unnecessary.
-  maxRetriesPerBox: number,
   backgroundColor: RgbColor,
 ) {
   if (
@@ -38,16 +33,8 @@ export function sampleColors(
   ) {
     throw new Error("numBoxesWide and numBoxesHigh must both be positive integers.");
   }
-  // TODO: Maybe don't bother with this validation? Seems a little restrictive, and the whole thing with avoiding
-  // sampling the same pixel seems unnecessary.
-  if (numBoxesWide > image.width || numBoxesHigh > image.height) {
-    throw new Error("Requested boxes can't be smaller that the original pixel size.");
-  }
   if (!Number.isSafeInteger(samplesPerBox) || samplesPerBox <= 0) {
     throw new Error("samplesPerBox must be a positive integer.");
-  }
-  if (!Number.isSafeInteger(maxRetriesPerBox) || maxRetriesPerBox < 0) {
-    throw new Error("maxRetriesPerBox must be a non-negative integer.");
   }
 
   const samples: RgbColor[][] = [];
@@ -66,10 +53,6 @@ export function sampleColors(
     );
 
     const samplesForBox: RgbColor[] = [];
-    // TODO: Maybe don't bother tracking which pixels we've already sampled. Seems unnecessary.
-    const sampledPixelIndicesForBox = new Set<number>();
-
-    let numRetriesForBox = 0;
 
     for (let i = 0; i < samplesPerBox; i++) {
       const samplePixelRow = Math.floor(
@@ -79,21 +62,14 @@ export function sampleColors(
         Math.random() * (maxPixelColExclusive - minPixelColInclusive) + minPixelColInclusive,
       );
       const samplePixelIndex = samplePixelRow * image.width + samplePixelCol;
-      if (sampledPixelIndicesForBox.has(samplePixelIndex)) {
-        if (numRetriesForBox++ >= maxRetriesPerBox) {
-          break;
-        }
-      } else {
-        sampledPixelIndicesForBox.add(samplePixelIndex);
-        samplesForBox.push(
-          new RgbaColor(
-            image.data[4 * samplePixelIndex],
-            image.data[4 * samplePixelIndex + 1],
-            image.data[4 * samplePixelIndex + 2],
-            image.data[4 * samplePixelIndex + 3],
-          ).toRgb(backgroundColor),
-        );
-      }
+      samplesForBox.push(
+        new RgbaColor(
+          image.data[4 * samplePixelIndex],
+          image.data[4 * samplePixelIndex + 1],
+          image.data[4 * samplePixelIndex + 2],
+          image.data[4 * samplePixelIndex + 3],
+        ).toRgb(backgroundColor),
+      );
     }
 
     samples.push(samplesForBox);

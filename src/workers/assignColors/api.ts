@@ -20,7 +20,7 @@ import { RgbVector } from "lib/color";
 export interface AssignColorsRequest {
   sampledColors: readonly (readonly RgbVector[])[];
   resolvedColors: readonly RgbVector[];
-  prevalenceBias: number;
+  exponent: number;
 }
 
 export interface AssignColorsResponse {
