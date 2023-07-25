@@ -27,7 +27,7 @@ export function assignColorToBox(samplesForBox: RgbColor[], resolvedColors: RgbC
     numOccurrences[centroids.classify(sample.toVector())]++;
   }
   const chosenIndex = chooseAtRandomWithWeights(resolvedColors, (_, idx) =>
-    Math.pow(numOccurrences[idx], prevalenceBias),
+    numOccurrences[idx] > 0 ? Math.pow(numOccurrences[idx], prevalenceBias) : 0,
   );
   if (chosenIndex < 0) {
     throw new Error("The samples array must contain at least one sample.");
