@@ -151,6 +151,17 @@ const GenerateColors: React.FC = () => {
       }
       Promise.all(promises)
         .then((responses) => {
+          if (process.env.REACT_APP_LOG_VERBOSE_COLOR_GENERATION_STATS === "true") {
+            console.log(
+              `Choosing best resolveColorsInBackground response from ${
+                responses.length
+              } responses with variances of ${JSON.stringify(
+                responses.map((resp) => resp.variance).sort((a, b) => a - b),
+                undefined,
+                2,
+              )}`,
+            );
+          }
           const bestResponse = responses.reduce((bestSoFar, next) =>
             next.variance < bestSoFar.variance ? next : bestSoFar,
           );
