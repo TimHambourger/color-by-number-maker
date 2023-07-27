@@ -18,8 +18,12 @@
 import { RgbVector } from "lib/color";
 
 export interface ResolveColorsRequest {
+  imageWidth: number;
+  imageHeight: number;
+  numBoxesWide: number;
   sampledColors: readonly (readonly RgbVector[])[];
   maxColors: number;
+  pixelLocationExponent: number;
 }
 
 export interface ResolveColorsResponse {

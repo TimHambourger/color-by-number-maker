@@ -28,7 +28,12 @@ import WizardPage from "view/WizardPage";
 import { sampleColorsInBackground, resolveColorsInBackground, assignColorsInBackground } from "workers";
 import { ResolveColorsResponse } from "workers/resolveColors/api";
 import { IntegerColorSetting, RgbVectorColorSetting } from "./ColorSetting";
-import { BEST_KMEANS_OF_N, COLOR_ASSIGNMENT_EXPONENT, SAMPLES_PER_BOX } from "app/colorGenerationParams";
+import {
+  BEST_KMEANS_OF_N,
+  COLOR_ASSIGNMENT_EXPONENT,
+  PIXEL_LOCATION_EXPONENT,
+  SAMPLES_PER_BOX,
+} from "app/colorGenerationParams";
 
 const PREVIEW_WIDTH_PX = 400;
 
@@ -129,15 +134,19 @@ const GenerateColors: React.FC = () => {
 
   // 2. Resolve colors....
   useEffect(() => {
-    if (sampledColors && !resolvedColors) {
+    if (imageData && sampledColors && !resolvedColors) {
       const controller = new AbortController();
       const promises: Promise<ResolveColorsResponse>[] = [];
       for (let i = 0; i < BEST_KMEANS_OF_N; i++) {
         promises.push(
           resolveColorsInBackground(
             {
+              imageWidth: imageData.width,
+              imageHeight: imageData.height,
+              numBoxesWide: boxesWide,
               sampledColors,
               maxColors,
+              pixelLocationExponent: PIXEL_LOCATION_EXPONENT,
             },
             controller.signal,
           ),
@@ -166,7 +175,7 @@ const GenerateColors: React.FC = () => {
         });
       return () => controller.abort();
     }
-  }, [resolvedColors, sampledColors, dispatch, setResolvedColors, maxColors]);
+  }, [imageData, sampledColors, resolvedColors, boxesWide, maxColors, dispatch, setResolvedColors]);
 
   // 3. Assign colors....
   useEffect(() => {
