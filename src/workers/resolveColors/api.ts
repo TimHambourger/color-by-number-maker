@@ -15,6 +15,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 
+import { PointOfEmphasis } from "app/slice";
 import { RgbVector } from "lib/color";
 
 export interface ResolveColorsRequest {
@@ -23,7 +24,7 @@ export interface ResolveColorsRequest {
   numBoxesWide: number;
   sampledColors: readonly (readonly RgbVector[])[];
   maxColors: number;
-  pixelLocationExponent: number;
+  pointsOfEmphasis: readonly PointOfEmphasis[];
 }
 
 export interface ResolveColorsResponse {

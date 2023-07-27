@@ -23,20 +23,8 @@ import { RgbColor, RgbVector } from "lib/color";
 import { constrain } from "lib/constrain";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-export const CX_ON_RIGHT = "on-right";
-
 export const CX_ROOT = rule({
   display: "inline-block",
-  width: "50%",
-  [`&.${CX_ON_RIGHT}`]: {
-    textAlign: "right",
-  },
-});
-
-export const CX_LEFT_INPUT_LABEL = rule({
-  display: "inline-block",
-  textAlign: "right",
-  width: "175px",
 });
 
 export const CX_INPUT_ELEMENT = rule({
@@ -56,7 +44,6 @@ export type ParseResult<TValue> = { isSuccess: true; value: TValue } | { isSucce
 
 export interface ColorSettingProps<TValue> {
   label: string;
-  on: "left" | "right";
   value: TValue;
   onChange: (newValue: TValue) => void;
   display: (value: TValue) => string;
@@ -68,7 +55,6 @@ export interface ColorSettingProps<TValue> {
 
 export function ColorSetting<TValue>({
   label,
-  on,
   value,
   onChange,
   display,
@@ -86,9 +72,9 @@ export function ColorSetting<TValue>({
   }, [parseResult, areValuesEqual, value, onChange]);
 
   return (
-    <div className={cx(CX_ROOT, { [CX_ON_RIGHT]: on === "right" }, className)}>
+    <div className={cx(CX_ROOT, className)}>
       <div>
-        <label className={cx({ [CX_LEFT_INPUT_LABEL]: on === "left" })}>
+        <label>
           {label}{" "}
           <input
             className={CX_INPUT_ELEMENT}
@@ -132,6 +118,55 @@ export const IntegerColorSetting: React.FC<IntegerColorSettingProps> = ({ minVal
           };
     },
     [minValue, maxValue],
+  );
+  return <ColorSetting display={display} parse={parse} {...rest} />;
+};
+
+export type FloatColorSettingProps = Omit<ColorSettingProps<number>, "display" | "parse"> &
+  (
+    | {
+        /**
+         * An optional validator to limit which values are allowed.
+         */
+        validator?: undefined;
+        /**
+         * Optional text filling in the blank in the sentence "Must be a ___."
+         */
+        numberTypeText?: undefined;
+      }
+    | {
+        /**
+         * An optional validator to limit which values are allowed.
+         * @param value The value proposed by the user.
+         * @returns `true` if the value is allowed, `false` otherwise.
+         */
+        validator: (value: number) => boolean;
+        /**
+         * Optional text filling in the blank in the sentence "Must be a ___."
+         */
+        numberTypeText: string;
+      }
+  );
+
+const SIGNED_FLOAT = /^(\+|-)?((?:\d*\.)?\d+)$/;
+
+export const FloatColorSetting: React.FC<FloatColorSettingProps> = ({ validator, numberTypeText, ...rest }) => {
+  const display = useCallback((value: number) => "" + value, []);
+  const parse = useCallback(
+    (debouncedValue: string): ParseResult<number> => {
+      const match = debouncedValue.match(SIGNED_FLOAT);
+      const parsed = match ? (match[1] === "-" ? -1 : 1) * +match[2] : undefined;
+      return parsed === undefined || (validator && !validator(parsed))
+        ? {
+            isSuccess: false,
+            error: `Must be a ${numberTypeText || "number"}.`,
+          }
+        : {
+            isSuccess: true,
+            value: parsed,
+          };
+    },
+    [validator, numberTypeText],
   );
   return <ColorSetting display={display} parse={parse} {...rest} />;
 };

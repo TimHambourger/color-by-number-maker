@@ -39,9 +39,21 @@ export const ALL_PHASES = Object.values(ColorByNumberMakerPhase)
  * Crop zone coordinates. All numbers are in pixels.
  */
 export interface CropZone {
+  /**
+   * x coordinate of the top left corner of the crop zone, in pixels relative to the overall image's coordinate system
+   */
   x: number;
+  /**
+   * y coordinate of the top left corner of the crop zone, in pixels relative to the overall image's coordinate system
+   */
   y: number;
+  /**
+   * width of the crop zone in pixels
+   */
   width: number;
+  /**
+   * height of the crop zone in pixels
+   */
   height: number;
 }
 
@@ -49,6 +61,38 @@ const areCropZonesEqual = (zone1: CropZone | undefined, zone2: CropZone | undefi
   zone1 && zone2
     ? zone1.x === zone2.x && zone1.y === zone2.y && zone1.width === zone2.width && zone1.height === zone2.height
     : zone1 === zone2;
+
+export interface PointOfEmphasis {
+  /**
+   * x coordinate of the point of emphasis, in pixels relative to the selected crop zone. I.e. 0 is the left edge of the
+   * crop zone.
+   */
+  x: number;
+  /**
+   * y coordinate of the point of emphasis, in pixels relative to the selected crop zone. I.e. 0 is the top edge of the
+   * crop zone.
+   */
+  y: number;
+  /**
+   * Positive coefficient specifying how much emphasis this point should get when resolving colors. Larger numbers mean
+   * more emphasis. Numbers closer to zero mean less emphasis.
+   */
+  coefficient: number;
+  /**
+   * A number specifying how strongly concentrated around the selected point the emphasis should be. A larger number
+   * makes the emphasis more tightly concentrated around the selected point. A number closer to zero makes the emphasis
+   * more spread out. Zero is allowed but serves no practical purpose b/c it means all parts of the image receive the
+   * same emphasis. Negative numbers are allowed and mean the emphasis INCREASES as distance from the selected point
+   * increases.
+   */
+  exponent: number;
+}
+
+const arePointsOfEmphasisEqual = (point1: PointOfEmphasis, point2: PointOfEmphasis) =>
+  point1.x === point2.x &&
+  point1.y === point2.y &&
+  point1.coefficient === point2.coefficient &&
+  point1.exponent === point2.exponent;
 
 export interface ColorMetadata {
   /**
@@ -89,6 +133,23 @@ export interface ColorByNumberMakerState {
   boxesHigh: number;
   maxColors: number;
   backgroundColor: RgbVector;
+  samplesPerBox: number;
+  /**
+   * A positive integer specifying how many times the k-means++ algorithm should run each time the application resolves
+   * colors for a given image. The application will choose the best output from the N k-means++ outputs.
+   */
+  bestKMeansOfN: number;
+  /**
+   * Points that should be given special emphasis (or de-emphasis) when resolving colors for this color by number.
+   * `undefined` indicates that the application can choose a reasonable default based on the size of the selected crop
+   * zone.
+   */
+  pointsOfEmphasis?: readonly PointOfEmphasis[];
+  /**
+   * An exponent that tunes the color assignment portion of the algorithm. Higher values generate smoother images.
+   * Values close to zero generate grainier images, and values below zero exaggerate that graininess even further.
+   */
+  colorAssignmentExponent: number;
   /**
    * The distinct colors for this color by number after colors have been resolved to conform to `maxColors`. This value
    * is **not** a pure function of other pieces of state b/c the algorithm used is non-deterministic. This value
@@ -121,6 +182,9 @@ const initialState: ColorByNumberMakerState = {
   boxesHigh: 40,
   maxColors: 8,
   backgroundColor: [255, 255, 255],
+  samplesPerBox: 20,
+  bestKMeansOfN: 3,
+  colorAssignmentExponent: 50,
   title: "",
 };
 
@@ -129,11 +193,15 @@ type InvalidatedKey = Exclude<keyof ColorByNumberMakerState, "phase">;
 // Object mapping from state keys to the other state keys that are invalidated by the given state key.
 const INVALIDATED_BY: { [Key in InvalidatedKey]: InvalidatedKey[] } = {
   dataUrl: ["cropZone", "title"],
-  cropZone: ["resolvedColors", "orientation"],
+  cropZone: ["resolvedColors", "orientation", "pointsOfEmphasis"],
   boxesWide: ["resolvedColors"],
   boxesHigh: ["resolvedColors"],
   maxColors: ["resolvedColors"],
   backgroundColor: ["resolvedColors"],
+  samplesPerBox: ["resolvedColors"],
+  bestKMeansOfN: ["resolvedColors"],
+  pointsOfEmphasis: ["resolvedColors"],
+  colorAssignmentExponent: ["colorAssignments"],
   resolvedColors: ["colorAssignments"],
   colorAssignments: ["colorMetadatas"],
   title: [],
@@ -180,6 +248,24 @@ const slice = createSlice({
     setBackgroundColor(state, action: PayloadAction<RgbVector>) {
       if (!arrayEq(state.backgroundColor, action.payload)) invalidate(state, "backgroundColor");
       state.backgroundColor = action.payload as Draft<RgbVector>;
+    },
+    setSamplesPerBox(state, action: PayloadAction<number>) {
+      if (state.samplesPerBox !== action.payload) invalidate(state, "samplesPerBox");
+      state.samplesPerBox = action.payload;
+    },
+    setBestKMeansOfN(state, action: PayloadAction<number>) {
+      if (state.bestKMeansOfN !== action.payload) invalidate(state, "bestKMeansOfN");
+      state.samplesPerBox = action.payload;
+    },
+    setPointsOfEmphasis(state, action: PayloadAction<readonly PointOfEmphasis[]>) {
+      if (state.pointsOfEmphasis && !arrayEq(state.pointsOfEmphasis, action.payload, arePointsOfEmphasisEqual)) {
+        invalidate(state, "pointsOfEmphasis");
+      }
+      state.pointsOfEmphasis = action.payload as Draft<readonly PointOfEmphasis[]>;
+    },
+    setColorAssignmentExponent(state, action: PayloadAction<number>) {
+      if (state.colorAssignmentExponent !== action.payload) invalidate(state, "colorAssignmentExponent");
+      state.colorAssignmentExponent = action.payload;
     },
     setResolvedColors(state, action: PayloadAction<readonly RgbVector[] | undefined>) {
       if (!areRgbVectorArraysEqual(state.resolvedColors, action.payload)) invalidate(state, "resolvedColors");

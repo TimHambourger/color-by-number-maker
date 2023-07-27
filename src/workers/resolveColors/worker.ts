@@ -26,23 +26,28 @@ import { ResolveColorsRequest, ResolveColorsResponse } from "./api";
 import { RgbVector } from "lib/color";
 
 onmessage = ({
-  data: { imageWidth, imageHeight, numBoxesWide, sampledColors, maxColors, pixelLocationExponent },
+  data: { imageWidth, imageHeight, numBoxesWide, sampledColors, maxColors, pointsOfEmphasis },
 }: MessageEvent<ResolveColorsRequest>) => {
+  const effectivePointsOfEmphasis = pointsOfEmphasis.filter(
+    ({ coefficient, exponent }) => coefficient > 0 && exponent !== 0,
+  );
   const numBoxesHigh = Math.floor(sampledColors.length / numBoxesWide);
   const boxWeights = sampledColors.map((_, boxIndex) => {
     const boxRow = Math.floor(boxIndex / numBoxesWide);
     const boxCol = boxIndex % numBoxesWide;
-    // TODO: Could certainly add flexibility to consider OTHER emphasized points other than the center of the image, and
-    // could even add flexibility to specify MULTIPLE emphasized points with different exponents for each one.
-    const squareDistanceOfBoxCenterFromImageCenter = euclideanDistanceSquared(
-      [((boxCol + 0.5) * imageWidth) / numBoxesWide, ((boxRow + 0.5) * imageHeight) / numBoxesHigh],
-      [imageWidth / 2, imageHeight / 2],
-    );
-    // Add one to the base of this expression so that the base is always positive. Divide pixelLocationExponent by 2 to
-    // counteract the implied exponent of 2 left over from taking the SQUARED Euclidean distance. Then take the negative
-    // of that b/c we want large pixelLocationExponent values to correlate with a STRONGER weight given towards samples
-    // near the center of the image.
-    return Math.pow(squareDistanceOfBoxCenterFromImageCenter + 1, -pixelLocationExponent / 2);
+    return effectivePointsOfEmphasis.length === 0
+      ? 1
+      : effectivePointsOfEmphasis.reduce((weightSoFar, { x, y, coefficient, exponent }) => {
+          const squareDistanceToCenterOfBox = euclideanDistanceSquared(
+            [((boxCol + 0.5) * imageWidth) / numBoxesWide, ((boxRow + 0.5) * imageHeight) / numBoxesHigh],
+            [x, y],
+          );
+          // Add one to the base of the Math.pow(...) call so that the base is always positive. Divide exponent by 2 to
+          // counteract the implied exponent of 2 left over from taking the SQUARED Euclidean distance. Then take the
+          // negative of that b/c we want large exponent values to correlate with a STRONGER weight given towards
+          // samples near the given point of emphasis.
+          return weightSoFar + coefficient * Math.pow(squareDistanceToCenterOfBox + 1, -exponent / 2);
+        }, 0);
   });
   const allSamples = sampledColors.flatMap((colorsForBox, boxIndex) =>
     colorsForBox.map((color) => [color, boxIndex] as const),

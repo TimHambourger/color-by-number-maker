@@ -27,13 +27,7 @@ import WizardNavigationControls from "view/WizardNavigationControls";
 import WizardPage from "view/WizardPage";
 import { sampleColorsInBackground, resolveColorsInBackground, assignColorsInBackground } from "workers";
 import { ResolveColorsResponse } from "workers/resolveColors/api";
-import { IntegerColorSetting, RgbVectorColorSetting } from "./ColorSetting";
-import {
-  BEST_KMEANS_OF_N,
-  COLOR_ASSIGNMENT_EXPONENT,
-  PIXEL_LOCATION_EXPONENT,
-  SAMPLES_PER_BOX,
-} from "app/colorGenerationParams";
+import { FloatColorSetting, IntegerColorSetting, RgbVectorColorSetting } from "./ColorSetting";
 
 const PREVIEW_WIDTH_PX = 400;
 
@@ -94,16 +88,51 @@ const CX_COLOR_SETTINGS_ROW = rule({
 const GenerateColors: React.FC = () => {
   const dispatch = useAppDispatch();
   const {
-    state: { dataUrl, cropZone, boxesWide, boxesHigh, maxColors, backgroundColor, resolvedColors, colorAssignments },
+    state: {
+      dataUrl,
+      cropZone,
+      boxesWide,
+      boxesHigh,
+      maxColors,
+      backgroundColor,
+      samplesPerBox,
+      bestKMeansOfN,
+      pointsOfEmphasis,
+      colorAssignmentExponent,
+      resolvedColors,
+      colorAssignments,
+    },
     setBoxesWide,
     setBoxesHigh,
     setMaxColors,
     setBackgroundColor,
+    setSamplesPerBox,
+    setBestKMeansOfN,
+    setPointsOfEmphasis,
+    setColorAssignmentExponent,
     setResolvedColors,
     setColorAssignments,
   } = useColorByNumberMakerState();
   const imageData = useImageData(dataUrl, cropZone);
   const [sampledColors, setSampledColors] = useState<readonly (readonly RgbVector[])[]>();
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+
+  // Initialize pointsOfEmphasis to a reasonable default for the given crop zone.
+  useEffect(() => {
+    if (cropZone && !pointsOfEmphasis) {
+      dispatch(
+        // Weakly emphasize the center of the image.
+        setPointsOfEmphasis([
+          {
+            x: cropZone.width / 2,
+            y: cropZone.height / 2,
+            coefficient: 1,
+            exponent: 0.4,
+          },
+        ]),
+      );
+    }
+  }, [cropZone, pointsOfEmphasis, dispatch, setPointsOfEmphasis]);
 
   // 1.a. Sample colors....
   useEffect(() => {
@@ -114,7 +143,7 @@ const GenerateColors: React.FC = () => {
           imageData,
           boxesWide,
           boxesHigh,
-          samplesPerBox: SAMPLES_PER_BOX,
+          samplesPerBox,
           backgroundColor,
         },
         controller.signal,
@@ -125,19 +154,29 @@ const GenerateColors: React.FC = () => {
         });
       return () => controller.abort();
     }
-  }, [imageData, resolvedColors, sampledColors, colorAssignments, boxesWide, boxesHigh, backgroundColor, dispatch]);
+  }, [
+    imageData,
+    resolvedColors,
+    sampledColors,
+    colorAssignments,
+    boxesWide,
+    boxesHigh,
+    samplesPerBox,
+    backgroundColor,
+    dispatch,
+  ]);
 
   // 1.b. Invalidate previously sampled colors if prior inputs change....
   useEffect(() => {
     setSampledColors(undefined);
-  }, [imageData, boxesWide, boxesHigh, backgroundColor]);
+  }, [imageData, boxesWide, boxesHigh, samplesPerBox, backgroundColor]);
 
   // 2. Resolve colors....
   useEffect(() => {
-    if (imageData && sampledColors && !resolvedColors) {
+    if (imageData && sampledColors && pointsOfEmphasis && !resolvedColors) {
       const controller = new AbortController();
       const promises: Promise<ResolveColorsResponse>[] = [];
-      for (let i = 0; i < BEST_KMEANS_OF_N; i++) {
+      for (let i = 0; i < bestKMeansOfN; i++) {
         promises.push(
           resolveColorsInBackground(
             {
@@ -146,7 +185,7 @@ const GenerateColors: React.FC = () => {
               numBoxesWide: boxesWide,
               sampledColors,
               maxColors,
-              pixelLocationExponent: PIXEL_LOCATION_EXPONENT,
+              pointsOfEmphasis,
             },
             controller.signal,
           ),
@@ -175,7 +214,17 @@ const GenerateColors: React.FC = () => {
         });
       return () => controller.abort();
     }
-  }, [imageData, sampledColors, resolvedColors, boxesWide, maxColors, dispatch, setResolvedColors]);
+  }, [
+    imageData,
+    sampledColors,
+    pointsOfEmphasis,
+    resolvedColors,
+    bestKMeansOfN,
+    boxesWide,
+    maxColors,
+    dispatch,
+    setResolvedColors,
+  ]);
 
   // 3. Assign colors....
   useEffect(() => {
@@ -185,7 +234,7 @@ const GenerateColors: React.FC = () => {
         {
           sampledColors,
           resolvedColors,
-          exponent: COLOR_ASSIGNMENT_EXPONENT,
+          exponent: colorAssignmentExponent,
         },
         controller.signal,
       )
@@ -195,7 +244,7 @@ const GenerateColors: React.FC = () => {
         });
       return () => controller.abort();
     }
-  }, [sampledColors, resolvedColors, colorAssignments, dispatch, setColorAssignments]);
+  }, [sampledColors, resolvedColors, colorAssignments, colorAssignmentExponent, dispatch, setColorAssignments]);
 
   // Remember props for the color by number preview as of whenever we last had averagedColors and resolvedColors
   // available. This supports showing an "after memory" of the last color by number preview as we're still constructing
@@ -234,36 +283,88 @@ const GenerateColors: React.FC = () => {
             <div className={CX_COLOR_SETTINGS_ROW}>
               <IntegerColorSetting
                 label="Boxes Wide"
-                on="left"
                 value={boxesWide}
                 onChange={(value) => dispatch(setBoxesWide(value))}
                 minValue={1}
                 maxValue={Math.min(150, cropZone.width)}
               />
               <IntegerColorSetting
+                label="Boxes High"
+                value={boxesHigh}
+                onChange={(value) => dispatch(setBoxesHigh(value))}
+                minValue={1}
+                maxValue={Math.min(150, cropZone.height)}
+              />
+              <IntegerColorSetting
                 label="Max Colors"
-                on="right"
                 value={maxColors}
                 onChange={(value) => dispatch(setMaxColors(value))}
                 minValue={1}
                 maxValue={50}
               />
             </div>
-            <div className={CX_COLOR_SETTINGS_ROW}>
-              <IntegerColorSetting
-                label="Boxes High"
-                on="left"
-                value={boxesHigh}
-                onChange={(value) => dispatch(setBoxesHigh(value))}
-                minValue={1}
-                maxValue={Math.min(150, cropZone.height)}
-              />
-              <RgbVectorColorSetting
-                label="Background Color"
-                on="right"
-                value={backgroundColor}
-                onChange={(value) => dispatch(setBackgroundColor(value))}
-              />
+            <div>
+              <h3>
+                Advanced Settings{" "}
+                <LinkButton onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}>
+                  {showAdvancedSettings ? "-" : "+"}
+                </LinkButton>
+              </h3>
+              {showAdvancedSettings ? (
+                <div>
+                  <div className={CX_COLOR_SETTINGS_ROW}>
+                    <RgbVectorColorSetting
+                      label="Background Color"
+                      value={backgroundColor}
+                      onChange={(value) => dispatch(setBackgroundColor(value))}
+                    />
+                    <IntegerColorSetting
+                      label="Samples per Box"
+                      value={samplesPerBox}
+                      onChange={(value) => dispatch(setSamplesPerBox(value))}
+                      minValue={1}
+                      maxValue={50}
+                    />
+                  </div>
+                  <div className={CX_COLOR_SETTINGS_ROW}>
+                    <IntegerColorSetting
+                      label="Choose best k-means++ of..."
+                      value={bestKMeansOfN}
+                      onChange={(value) => dispatch(setBestKMeansOfN(value))}
+                      minValue={1}
+                      maxValue={10}
+                    />
+                    {/* TODO: Better UI for points of emphasis.*/}
+                    {pointsOfEmphasis?.length === 1 ? (
+                      <>
+                        <FloatColorSetting
+                          label="Coefficient of Center Point"
+                          value={pointsOfEmphasis[0].coefficient}
+                          onChange={(value) =>
+                            dispatch(setPointsOfEmphasis([{ ...pointsOfEmphasis[0], coefficient: value }]))
+                          }
+                          validator={(value) => value > 0}
+                          numberTypeText="positive number"
+                        />
+                        <FloatColorSetting
+                          label="Exponent of Center Point"
+                          value={pointsOfEmphasis[0].exponent}
+                          onChange={(value) =>
+                            dispatch(setPointsOfEmphasis([{ ...pointsOfEmphasis[0], exponent: value }]))
+                          }
+                        />
+                      </>
+                    ) : null}
+                  </div>
+                  <div className={CX_COLOR_SETTINGS_ROW}>
+                    <FloatColorSetting
+                      label="Color Assignment Exponent"
+                      value={colorAssignmentExponent}
+                      onChange={(value) => dispatch(setColorAssignmentExponent(value))}
+                    />
+                  </div>
+                </div>
+              ) : null}
             </div>
             <div className={CX_COLOR_SETTINGS_ROW}>
               <span />
